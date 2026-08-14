@@ -57,8 +57,8 @@ def setup_mcp2221a():
     message = [
             0xb1, #write flash
             0x01, #write GP settings
-            0b00000100,#0b00100000, #put gpio0 in uart led mode
-            0b00000100,#0b00100000, #put gpio1 in uart led mode
+            0b00000010,#0b00100000, #put gpio0 in uart led mode
+            0b00000011,#0b00100000, #put gpio1 in uart led mode
             0b00010000,#0b00001000, #set gpio2 as output, default high
             0b00010000,#0b00001000, #set gpio3 as output, default high
     ]

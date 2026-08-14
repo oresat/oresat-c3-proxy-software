@@ -55,13 +55,12 @@ def setup_mcp2221a():
 
     #from page 35 of mcp2221a
     message = [
-            0x0,
             0xb1, #write flash
             0x01, #write GP settings
-            0b00100000, #put gpio0 in uart led mode
-            0b00100000, #put gpio1 in uart led mode
-            0b00001000, #set gpio2 as output, default high
-            0b00001000, #set gpio3 as output, default high
+            0b00000100,#0b00100000, #put gpio0 in uart led mode
+            0b00000100,#0b00100000, #put gpio1 in uart led mode
+            0b00010000,#0b00001000, #set gpio2 as output, default high
+            0b00010000,#0b00001000, #set gpio3 as output, default high
     ]
 
 
@@ -77,7 +76,20 @@ def setup_mcp2221a():
     rtn = h.write(message)
     print(rtn) #number of bytes written I thinks
 
+    # wait
+    time.sleep(0.05)
 
+    # read back the answer
+    print("Read the data")
+    while True:
+        d = h.read(64)
+        if d:
+            print(d)
+        else:
+            break
+
+    print("Closing the device")
+    h.close()
 
 import time
 

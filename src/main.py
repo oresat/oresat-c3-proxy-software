@@ -26,6 +26,7 @@ from PyQt6 import QtWidgets, QtCore
 import pyqtgraph as pg
 import sys
 from random import randint
+from PyQt6.QtWidgets import QPushButton
 
 
 from smbus2 import SMBus, i2c_msg
@@ -92,6 +93,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.setInterval(50)
         self.timer.timeout.connect(self.update_plot_data)
         self.timer.start()
+
+        centerBtn = QPushButton(text="Center", parent=self)
+        centerBtn.setFixedSize(100, 60)
 
     def update_plot_data(self):
         self.x = self.x[1:]  # Remove the first x element.

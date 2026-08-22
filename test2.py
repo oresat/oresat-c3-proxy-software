@@ -64,8 +64,6 @@ def setup_mcp2221a():
     ]
 
 
-
-
     h = hid.device()
     h.open(idVendor,idProduct)
     print("Manufacturer: %s" % h.get_manufacturer_string())
@@ -113,9 +111,6 @@ request = chip.request_lines(
     },
 )
 
-
-
-#
 #with gpiod.request_lines(
 #    "/dev/gpiochip2",
 #    consumer="blink-example",

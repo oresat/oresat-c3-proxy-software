@@ -13,10 +13,10 @@ if (input() != "y"):
 
 
 print("gpiochip: ", gpiod.is_gpiochip_device(GPIOCHIP))
-with gpiod.Chip(GPIOCHIP) as chip:
+with gpiod.Chip("/dev/gpiochip2") as chip:
     info = chip.get_info()
     print(f"{info.name}, [{info.label}] ({info.num_lines} lines)")
-
+    chip.close()
 
 with SMBus(I2CADDR) as bus:
     # Read 64 bytes from address 80
@@ -54,13 +54,48 @@ def setup_mcp2221a():
     idProduct=0x00dd
 
     #from page 35 of mcp2221a
-    message = [
-            0xb1, #write flash
-            0x01, #write GP settings
-            0b00000010,#0b00100000, #put gpio0 in uart led mode
-            0b00000011,#0b00100000, #put gpio1 in uart led mode
-            0b00010000,#0b00001000, #set gpio2 as output, default high
-            0b00010000,#0b00001000, #set gpio3 as output, default high
+    configureGpioMessage = [
+        0xb1, #write flash
+        0x01, #write GP settings
+        0b00000010, #put gpio0 in uart led mode
+        0b00000011, #put gpio1 in uart led mode
+        0b00010000, #set gpio2 as output, default high
+        0b00010000, #set gpio3 as output, default high
+    ]
+
+    #set the productID to something special so we can recognise chips later
+    #table 3-14, page 36
+    productIDBaseString = "MCP2221(a): " #MCP2221(a) UART/I2C Bridge
+    chipSpecifcName = "bob"
+    toSet = productIDBaseString + chipSpecifcName
+    stringAsBytes = bytearray(toSet, "UTF-16")
+    stringLength = len(stringAsBytes)
+
+    configureProductIDMessage = [
+        0xB1, #Write Flash Data – command code.
+        0x03,
+        #Write USB Manufacturer Descriptor String –
+        #writes the USB Manufacturer String Descriptor used during
+        #the USB enumeration.
+        stringLength + 2, #Note 2
+        #Number of bytes + 2 in the provided USB Serial Number
+        #Descriptor String.
+        0x03, #The value at this index must always be 0x03.
+    ]
+
+    finalString = bytearray(configureProductIDMessage) + stringAsBytes
+
+    print("goober")
+    print("hello this is the final string", finalString)
+    print("and it says: ", finalString.decode("UTF-16"))
+
+    #chip needs to be reset after writing to flash
+    #table 3-40, page 55, mcp2221a datasheet
+    resetMessage = [
+        0x70,
+        0xAB,
+        0xCD,
+        0xEF,
     ]
 
 
@@ -70,12 +105,19 @@ def setup_mcp2221a():
     print("Product: %s" % h.get_product_string())
     print("Serial No: %s" % h.get_serial_number_string())
 
-    h.set_nonblocking(1)
-    rtn = h.write(message)
-    print(rtn) #number of bytes written I thinks
+    #h.set_nonblocking(1)
+    #rtn = h.write(configureGpioMessage)
+    #print(rtn) #number of bytes written I thinks
 
-    # wait
+    ## wait
+    #time.sleep(0.05)
+
+    #rtn = h.write(resetMessage)
+    #time.sleep(0.05)
+    rtn = h.write(finalString)
     time.sleep(0.05)
+
+    
 
     # read back the answer
     print("Read the data")
@@ -85,7 +127,9 @@ def setup_mcp2221a():
             print(d)
         else:
             break
-
+    #reset the device
+    rtn = h.write(resetMessage)
+    time.sleep(0.05)
     print("Closing the device")
     h.close()
 
@@ -98,14 +142,20 @@ setup_mcp2221a()
 
 
 
-LINE = 0
-
+LINE = 2
+with gpiod.Chip("/dev/gpiochip2") as chip:
+    info = chip.get_info()
+    print(f"{info.name}, [{info.label}] ({info.num_lines} lines)")
+    chip.close()
 #breakpoint()
 chip = Chip("/dev/gpiochip2")
 request = chip.request_lines(
     consumer="blink-example",
     config={
-        LINE: gpiod.LineSettings(
+        2: gpiod.LineSettings(
+            direction=Direction.OUTPUT, output_value=Value.ACTIVE
+        ),
+        3: gpiod.LineSettings(
             direction=Direction.OUTPUT, output_value=Value.ACTIVE
         )
     },
@@ -121,7 +171,9 @@ request = chip.request_lines(
 #    },
 #) as request:
 while True:
-    request.set_value(LINE, Value.ACTIVE)
+    request.set_value(2, Value.ACTIVE)
+    request.set_value(3, Value.INACTIVE)
     time.sleep(1)
-    request.set_value(LINE, Value.INACTIVE)
+    request.set_value(2, Value.INACTIVE)
+    request.set_value(3, Value.ACTIVE)
     time.sleep(1)

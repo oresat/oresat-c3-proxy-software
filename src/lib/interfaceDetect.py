@@ -1,4 +1,6 @@
 import subprocess
+from pathlib import Path
+from mcp2221a import Mcp2221a
 
 errored = False
 
@@ -15,6 +17,12 @@ def runCommand(command):
     #    for line in result.splitlines():
     #        print(line.decode())
     return result
+
+
+#this is pretty jank, but traversing the usb items in dev is hard
+
+def getMcp2221as():
+    rtn = []
 
 
 mcpResult = runCommand("i2cdetect -l")
@@ -37,10 +45,16 @@ if (not errored):
 print(gpioDevices)
 
 
-serialResult = runCommand("udevadm info usb-Microchip_Technology_Inc._MCP2221_USB-I2C_UART_Combo-if00")
+#hopefully minor revisions of the MCP2221a don't screw this kind of thing up
 serialDevices = []
 if (not errored):
-    for line in serialResult.decode().splitlines():
-        if 'DEVNAME' in line:
-            serialDevices.append(line.split()[0])
-print(serialDevices)
+    for file in Path("/dev/serial/by-path").iterdir():
+        thisResult = runCommand(f"udevadm info --query=property --property=ID_MODEL --property=DEVNAME {str(file)}")
+        if (thisResult.find("MCP2221_USB-I2C_UART_Combo".encode()) > 0):
+            startIndex = thisResult.find("DEVNAME".encode())
+            endIndex = thisResult.find("\n".encode(), startIndex)
+            serialDevice = thisResult[startIndex:endIndex].decode().split("=")[1]
+            if serialDevice not in serialDevices:
+                serialDevices.append(serialDevice)
+
+print(serialDevices[::-1])

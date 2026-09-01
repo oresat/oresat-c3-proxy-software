@@ -1,12 +1,90 @@
-from PyQt6 import QtWidgets, QtCore, QtGui
-from PyQt6.QtWidgets import QPushButton, QMainWindow, QWidget, QApplication, QLabel, QHBoxLayout, QSplitter, QListWidget
 import sys
+from PyQt6 import QtWidgets, QtCore, QtGui
+from PyQt6.QtWidgets import QPushButton, QMainWindow, QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QSplitter, QListWidget, QListWidgetItem
+from lib.mcp2221a import getMcp2221as
+import lib.opd
+
+#python inheritence is dumb dumb stoopid
+#class mcpListItem(QListWidgetItem):
+#    chipIndex = 0
+#    def __init__(self, text):
+#        super().__init__(self, text, type=super().ItemType.UserType)
+
+
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setGeometry(500, 500, 500, 500)
+        self.setWindowTitle("C3-Proxy Software")
+        self.selectedChip = ""
+        self.chipSelector = None
+        self.lambdas = []
+        self.chips = []
         self.initUI()
+
+
+#    def toggleOPD(self, idx):
+#        if self.selectedChip == None:
+#            return
+#
+#        chip = self.chips[idx]
+#        chip.toggleOPD()
+#
+#
+#    def toggleSD(self, idx):
+#        if self.selectedChip == None:
+#            return
+#
+#        chip = self.chips[idx]
+#        chip.toggleShutdown()
+
+        #change app state to represent which chip is active
+        #function to get called on refresh
+    def updateChipSelector(self):
+        self.chipSelector.clear()
+        for chip in self.chips:
+            chip.__del__()
+        print("here's chips ", self.chips)
+        self.chips = getMcp2221as()
+        for idx, chip in enumerate(self.chips):
+            
+            item = QListWidgetItem(self.chipSelector)
+            itemWidget = QWidget()
+            itemWidget.setFixedSize(350, 20)
+            lineText = QLabel(f"{idx}: {chip.usbPath.decode()}")
+            OPDPushButton = QPushButton("OPD_PWR")
+            OPDPushButton.setObjectName(str(idx))
+            SDPushButton = QPushButton("SD")
+            SDPushButton.setObjectName(str(idx))
+            print("idx is ", idx)
+            #create a new scope with another lambda so they stay seperate between loop iterations
+            OPDPushButton.clicked.connect((lambda c: lambda : c.toggleSD())(chip))
+            SDPushButton.clicked.connect((lambda c: lambda : c.toggleOPDPWR())(chip))
+            itemLayout = QHBoxLayout(itemWidget)
+            itemLayout.setContentsMargins(10, 4, 5, 2)
+            itemLayout.addWidget(lineText)
+            itemLayout.addStretch()
+            itemLayout.addWidget(OPDPushButton)
+            itemLayout.addWidget(SDPushButton)
+            self.chipSelector.addItem(item)
+            self.chipSelector.setItemWidget(item, itemWidget)
+
+
+            #item = QListWidgetItem()
+            #QListWidgetItem(f"{idx}: {chip.usbPath.decode()}", self.chipSelector)
+            #QPushButton(text="idk", parent=item)
+            #self.chipSelector.addItem(item)
+
+
+        self.chips[0].probe_bus()
+
+    def chipSelected(self, item):
+        #this is super jank, but inhereting the QListWidgetItem is really weird and stinky, + this works + ratio + bozo no CS degree   ~\(:/)/~
+        self.selectedChip = self.chipSelector.row(item)#item.text()[0]
+        print("chip selected", self.selectedChip)
+
 
     def initUI(self):
         root = QWidget()
@@ -22,14 +100,31 @@ class MainWindow(QMainWindow):
         panelSplitter.setChildrenCollapsible(False)
         panelLayout.addWidget(panelSplitter)
 
-        chipSelector = QListWidget(panelSplitter)#QLabel("Chip Selector")
-        chipSelector.addItem("maybechip1")
-        chipSelector.addItem("sometimes chip 2")
-        chipSelector.addItem("chip 3? good luck...")
-        chipSelector.setStyleSheet("background-color: grey")
+
+        chipSelectorPane = QSplitter(QtCore.Qt.Orientation.Vertical, panelSplitter)
+        chipSelectorPane.setChildrenCollapsible(False)
+        chipSelectorPane.setHandleWidth(0)
+        chipSelectorPaneLayout = QHBoxLayout()
+        chipSelectorPaneLayout.addWidget(chipSelectorPane)
+
+        self.chipSelector = QListWidget(chipSelectorPane)#QLabel("Chip Selector")
+        self.chipSelector.setStyleSheet("background-color: grey")
+        self.chipSelector.itemClicked.connect(self.chipSelected)
+
+        chipSelectorTitle = QLabel("Chip Selector")
+        chipSelectorTitle.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        chipSelectorTitle.setStyleSheet("background-color: grey")
+        chipSelectorRefreshButton = QPushButton(text="REFRESH")
+        chipSelectorRefreshButton.clicked.connect(self.updateChipSelector)
+        chipSelectorRefreshButton.setStyleSheet("background-color: grey")
+
+        chipSelectorPane.addWidget(chipSelectorTitle)
+        chipSelectorPane.addWidget(self.chipSelector)
+        chipSelectorPane.addWidget(chipSelectorRefreshButton)
+        self.updateChipSelector()
         opdControl = QLabel("OPD Control")
         opdControl.setStyleSheet("background-color: grey")
-        panelSplitter.addWidget(chipSelector)
+        panelSplitter.addWidget(chipSelectorPane)
         panelSplitter.addWidget(opdControl)
 
 

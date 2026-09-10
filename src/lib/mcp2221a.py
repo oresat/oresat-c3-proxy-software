@@ -6,21 +6,24 @@ from gpiod.line import Direction, Value
 import subprocess
 from pathlib import Path
 import time
-
+from lib.opd import *
+from lib.ina226 import INA226
 
 SHUTDOWNPIN = 2
 OPDPOWPIN = 3
 
 
 class Mcp2221a:
-    i2c = ""
-    serial = ""
-    gpio = ""
-    OPDState = OpdPowerState
-    SDState = BusShutdownState
+    i2c: SMBus
+    serial: str
+    gpio: str
+    OPDState: OpdPowerState
+    SDState: BusShutdownState
+    ina226: INA226
 
-    def __init__(self, i2c, serial, gpio, usbPath):
-        self.i2c = i2c
+    def __init__(self, i2c: str, serial: str, gpio: str, usbPath: str):
+        #try:
+        self.i2c = SMBus(i2c)
         self.serial = serial
         self.gpio = gpio
         self.gpioReq = Chip(gpio).request_lines(
@@ -37,6 +40,10 @@ class Mcp2221a:
         self.usbPath = usbPath
         self.OPDState = OpdPowerState.idling
         self.SDState = BusShutdownState.idling
+        self.ina226 = INA226(self.i2c, 0x40)
+        #print("ina226 is ", self.ina226)
+        #except Exception as e:
+        #    print("could not initialize Mcp2221a", e)
 
     def __del__(self):
         self.gpioReq.release()
@@ -50,6 +57,7 @@ class Mcp2221a:
 
 
     def toggleSD(self):
+            print("toggling power on: ", self)
 
         #try:
             req = self.gpioReq
@@ -63,6 +71,7 @@ class Mcp2221a:
         #    print(Exception)
 
     def toggleOPDPWR(self):
+        print("togglign OPD_PWR on ", self)
 
         try:
             #with self.gpioReq as req:
@@ -77,46 +86,46 @@ class Mcp2221a:
         except Exception:
             print(Exception)
 
+    def probe_addr(self, addr):
+        #with SMBus(self.i2c) as bus:
+        found = False
+        try:
+            self.i2c.write_quick(addr)
+            found = True
+        except Exception:
+            pass
+        return found
 
 
     def probe_bus(self):
-        with SMBus(self.i2c) as bus:
-            for row in opd_table:
-                addr = row[1]
-                found = False
-                try:
-                    #throws exception if no response
-                    bus.write_quick(addr)
-                    found = True
-                except Exception:
-                    pass
-
-                print("I2C device at address 0x%X (%13s): %s" %(addr, row[0], ("FOUND" if found else "not found")))
+        for row in opd_table:
+            found = self.probe_addr(row[1])
+            print("I2C device at address 0x%X (%13s): %s" %(row[1], row[0], ("FOUND" if found else "not found")))
 
     def i2c_read_reg(self, addr, reg):
-        with SMBus(self.i2c) as bus:
-            write = i2c_msg.write(addr, bytes([reg]))
-            read = i2c_msg.read(addr, 1)
-            try:
-                bus.rdwr(write, read)
-                return read
-            except Exception:
-                print("Failed to read from i2c address 0x%X" % addr)
+        #with SMBus(self.i2c) as bus:
+        try:
+            val = self.i2c.read_byte_data(addr, reg)
+            print("i2c read value: ", val)
+            return val
+        except Exception as e:
+            print("Failed to read from i2c address 0x%X -" % addr, e)
 
     def i2c_write_reg(self, addr, reg, data):
-        with SMBus(self.i2c) as bus:
-            buf = bytearray(1)
-            buf[0] = reg
-            buf.extend(data)
-            write = i2c_msg.write(addr, bytes([data]))
-            try:
-                bus.rdwr(write)
-            except Exception:
-                print("Failed to write to address 0x%X: reg=0x%X" % (addr, reg))
+        #with SMBus(self.i2c) as bus:
+        buf = bytearray(1)
+        buf[0] = reg
+        buf.extend(bytes(data))
+        try:
+            return self.i2c.write_block_data(addr, reg, buf)
+        except Exception as e:
+            print("Failed to write to address 0x%X: reg=0x%X -" % (addr, reg), e)
 
     def opd_en_pin_mode(self, i2c_addr):
         result = self.i2c_read_reg(i2c_addr, MAX7310_AD_MODE)
-        result[0] &= ~(1 << OPD_EN)  # Set the EN pin to output mode
+        result &= ~(1 << OPD_EN)  # Set the EN pin to output mode
+        result = bytearray([result])
+        #print("result is ", result, type(result), " length is: ", len(result))
         self.i2c_write_reg(i2c_addr, MAX7310_AD_MODE, result)
 
     def opt_print_status(self, i2c_addr):
@@ -135,22 +144,24 @@ class Mcp2221a:
 
 
     def set_max7310_pin(self, i2c_addr, pin_num):
-        result = i2c_read_reg(self, i2c_addr, MAX7310_AD_ODR)
-        result[0] |= (1 << pin_num)
-        i2c_write_reg(self, i2c_addr, MAX7310_AD_ODR, result)
+        result = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
+        result |= (1 << pin_num)
+        #result = bytes(result)
+        print("setting pin, result: ", result)
+        self.i2c_write_reg(i2c_addr, MAX7310_AD_ODR, bytes([result]))
         return
 
     def clear_max7310_pin(self, i2c_addr, pin_num):
-        result = i2c_read_reg(self, i2c_addr, MAX7310_AD_ODR)
-        result[0] &= ~(1 << pin_num)
-        i2c_write_reg(self, i2c_addr, MAX7310_AD_ODR, result)
+        result = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
+        result &= ~(1 << pin_num)
+        self.i2c_write_reg(i2c_addr, MAX7310_AD_ODR, bytes(result))
 
     def opd_enable_disable_node(self, i2c_addr, enable_flag):
-        opd_en_pin_mode(self, i2c_addr)
+        self.opd_en_pin_mode(i2c_addr)
         if enable_flag:
-            set_max7310_pin(self, i2c_addr, OPD_EN)
+            self.set_max7310_pin(i2c_addr, OPD_EN)
         else:
-            clear_max7310_pin(self, i2c_addr, OPD_EN)
+            self.clear_max7310_pin(i2c_addr, OPD_EN)
         return
 
 

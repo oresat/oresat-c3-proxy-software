@@ -9,6 +9,7 @@ class BusShutdownState(Enum):
     idling = 1
 
 
+OPD_I2C_ADDRESS_PROTOCARD     = 0x10
 OPD_I2C_ADDRESS_BATTERY_1     = 0x18
 OPD_I2C_ADDRESS_GPS           = 0x19
 OPD_I2C_ADDRESS_ADCS          = 0x1A
@@ -24,6 +25,7 @@ OPD_I2C_ADDRESS_RW4           = 0x23
 
 
 opd_table = [
+    ['protocard', OPD_I2C_ADDRESS_PROTOCARD],
     ['battery-1', OPD_I2C_ADDRESS_BATTERY_1],
     ['gps', OPD_I2C_ADDRESS_GPS],
     ['adcs', OPD_I2C_ADDRESS_ADCS],
@@ -36,7 +38,8 @@ opd_table = [
     ['rw2', OPD_I2C_ADDRESS_RW2],
     ['rw3', OPD_I2C_ADDRESS_RW3],
     ['rw4', OPD_I2C_ADDRESS_RW4],
-    ['TESTING', 24]
+#    ['TESTING', 24],
+#    ['ina226-default', 0x40]
 ]
 
 MAX7310_AD_INPUT                   = 0x00
@@ -45,21 +48,12 @@ MAX7310_AD_POL                     = 0x02
 MAX7310_AD_MODE                    = 0x03
 MAX7310_AD_TIMEOUT                 = 0x04
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+OPD_SCL                    = 0
+OPD_SDA                    = 1
+OPD_FAULT                  = 2
+OPD_EN                     = 3
+OPD_CB_RESET               = 4
+OPD_BOOT0                  = 5
+OPD_LINUX_BOOT             = 6
+OPD_PIN7                   = 7
 

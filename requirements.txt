@@ -1,0 +1,3 @@
+gpiod
+smbus2
+PyQt6

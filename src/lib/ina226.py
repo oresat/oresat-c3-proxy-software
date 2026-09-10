@@ -1,5 +1,8 @@
 from smbus2 import SMBus, i2c_msg
 import time
+import logging
+logger = logging.getLogger(__name__)
+
 # Registers
 _REG_CONFIG        = 0x00
 _REG_SHUNTVOLTAGE  = 0x01
@@ -139,6 +142,8 @@ class INA226:
 
     def _read_u16(self, reg):
         val = self.i2c.read_word_data(self.addr, reg)
+        if reg == _REG_BUSVOLTAGE:
+            logger.debug("voltage val: {:016b}".format(val))
         #swap high and low bytes :3
         rtn = ((val & 0xFF) << 8) | ((val >> 8) & 0xFF)
         return rtn
@@ -159,7 +164,7 @@ class INA226:
         """
         config = _CONFIG_CONST_BITS | avg | vbusct | vshct | mode
         self._config = config
-        print("config is ", self._config)
+        logger.debug(f"config is {self._config}")
         self._write_u16(_REG_CONFIG, config)
         return config
 
@@ -238,7 +243,9 @@ class INA226:
     def bus_voltage(self):
         """Bus voltage in Volts (unsigned)."""
         raw = self._read_u16(_REG_BUSVOLTAGE)
-        return raw * _BUS_V_LSB_V
+        rtn = raw * _BUS_V_LSB_V
+        logger.debug("scaled: {:016b}".format(int(rtn * 1000)))
+        return rtn
 
     @property
     def current(self):

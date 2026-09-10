@@ -4,6 +4,8 @@ from PyQt6.QtWidgets import QPushButton, QMainWindow, QWidget, QApplication, QLa
 from lib.mcp2221a import getMcp2221as
 from lib.opd import opd_table
 from smbus2 import i2c_msg
+import logging
+logger = logging.getLogger(__name__)
 
 #python inheritence is dumb dumb stoopid
 #class mcpListItem(QListWidgetItem):
@@ -47,7 +49,7 @@ class MainWindow(QMainWindow):
         for chip in self.chips:
             chip.__del__()
         self.chips.clear()
-        print("here's chips ", self.chips)
+        logger.info(f"here's chips {self.chips}")
         self.chips = getMcp2221as()
         for idx, chip in enumerate(self.chips):
             item = QListWidgetItem(self.chipSelector)
@@ -58,7 +60,7 @@ class MainWindow(QMainWindow):
             OPDPushButton.setObjectName(str(idx))
             SDPushButton = QPushButton("SD")
             SDPushButton.setObjectName(str(idx))
-            print("idx is ", idx)
+            logger.info(f"idx is {idx}")
             #create a new scope with another lambda so they stay seperate between loop iterations
             OPDPushButton.clicked.connect((lambda c: lambda : c.toggleOPDPWR())(chip))
             SDPushButton.clicked.connect((lambda c: lambda : c.toggleSD())(chip))
@@ -84,7 +86,7 @@ class MainWindow(QMainWindow):
     def chipSelected(self, item):
         #this is super jank, but inhereting the QListWidgetItem is really weird and stinky, + this works + ratio + bozo no CS degree   ~\(:/)/~
         self.selectedChip = self.chipSelector.row(item)#item.text()[0]
-        print("chip selected", self.selectedChip)
+        logger.info(f"chip selected {self.selectedChip}")
 
     def updateOpdMenu(self, opdList: QListWidget):
         opdList.clear()
@@ -126,7 +128,7 @@ class MainWindow(QMainWindow):
 
                 #opdList.addItem(f"{row[0]}, {row[1]}, {self.chips[self.selectedChip].probe_addr(row[1])}")
 
-        print(f"current: {chip.ina226.current_mA}mA, voltage: {chip.ina226.bus_voltage}V")
+        logger.info(f"current: {chip.ina226.current_mA}mA, voltage: {chip.ina226.bus_voltage}V")
 
 
 
@@ -204,10 +206,14 @@ class MainWindow(QMainWindow):
         rootSplitter.addWidget(label2)
 
 def main():
+
+    logging.basicConfig(level=logging.DEBUG)
+    logger.info('started c3-proxy software')
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
+
 
 
 main()

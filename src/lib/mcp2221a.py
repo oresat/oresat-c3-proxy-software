@@ -8,6 +8,8 @@ from pathlib import Path
 import time
 from lib.opd import *
 from lib.ina226 import INA226
+import logging
+logger = logging.getLogger()
 
 SHUTDOWNPIN = 2
 OPDPOWPIN = 3
@@ -57,7 +59,7 @@ class Mcp2221a:
 
 
     def toggleSD(self):
-            print("toggling power on: ", self)
+            logging.debug(f"toggling power on: {self}")
 
         #try:
             req = self.gpioReq
@@ -71,7 +73,7 @@ class Mcp2221a:
         #    print(Exception)
 
     def toggleOPDPWR(self):
-        print("togglign OPD_PWR on ", self)
+        logger.debug(f"toggling OPD_PWR on {self}")
 
         try:
             #with self.gpioReq as req:
@@ -84,7 +86,7 @@ class Mcp2221a:
                 self.OPDState = OpdPowerState.idling
 
         except Exception:
-            print(Exception)
+            logger.debug(Exception)
 
     def probe_addr(self, addr):
         #with SMBus(self.i2c) as bus:
@@ -100,16 +102,16 @@ class Mcp2221a:
     def probe_bus(self):
         for row in opd_table:
             found = self.probe_addr(row[1])
-            print("I2C device at address 0x%X (%13s): %s" %(row[1], row[0], ("FOUND" if found else "not found")))
+            logger.info("I2C device at address 0x%X (%13s): %s" %(row[1], row[0], ("FOUND" if found else "not found")))
 
     def i2c_read_reg(self, addr, reg):
         #with SMBus(self.i2c) as bus:
         try:
             val = self.i2c.read_byte_data(addr, reg)
-            print("i2c read value: ", val)
+            logging.debug(f"i2c read value: {val}")
             return val
         except Exception as e:
-            print("Failed to read from i2c address 0x%X -" % addr, e)
+            logger.error(f"Failed to read from i2c address 0x{addr} - {e}")
 
     def i2c_write_reg(self, addr, reg, data):
         #with SMBus(self.i2c) as bus:
@@ -119,7 +121,7 @@ class Mcp2221a:
         try:
             return self.i2c.write_block_data(addr, reg, buf)
         except Exception as e:
-            print("Failed to write to address 0x%X: reg=0x%X -" % (addr, reg), e)
+            logger.error(f"Failed to write to address 0x{addr} reg=0x{reg} - {e}")
 
     def opd_en_pin_mode(self, i2c_addr):
         result = self.i2c_read_reg(i2c_addr, MAX7310_AD_MODE)
@@ -147,7 +149,7 @@ class Mcp2221a:
         result = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
         result |= (1 << pin_num)
         #result = bytes(result)
-        print("setting pin, result: ", result)
+        logger.info(f"setting pin, result: {result}")
         self.i2c_write_reg(i2c_addr, MAX7310_AD_ODR, bytes([result]))
         return
 
@@ -199,7 +201,7 @@ def getMcp2221a(gpiodev):
     i2cGpioPath = (i2cGpioPrefix + "/" + runCommand(f"ls {i2cGpioPrefix} | grep 0003:04D8:00DD").decode()).strip()
     i2c = "/dev/" + runCommand(f"ls {i2cGpioPath} | grep i2c").decode().strip()
     gpio = "/dev/" + runCommand(f"ls {i2cGpioPath} | grep gpiochip").decode().strip()
-    print(i2c, gpio, tty)
+    logger.info("{i2c}, {gpio}, {tty}")
 
     return Mcp2221a(i2c, tty, gpio, usbPath)
 
@@ -215,7 +217,7 @@ def getMcp2221as():
     for line in gpioResult.decode().splitlines():
         if 'mcp2221' in line:
             gpioDevices.append(line.split()[0])
-    print(gpioDevices)
+    logger.info(gpioDevices)
 
     for gpioDevice in gpioDevices:
         rtn.append(getMcp2221a(gpioDevice))

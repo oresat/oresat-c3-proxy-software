@@ -31,17 +31,17 @@ class Mcp2221a:
         self.gpioReq = Chip(gpio).request_lines(
             consumer="mcp2221a object",
             config={
-                2: gpiod.LineSettings(
-                    direction=Direction.OUTPUT, output_value=Value.ACTIVE
+                SHUTDOWNPIN: gpiod.LineSettings(
+                    direction=Direction.OUTPUT, output_value=Value.INACTIVE
                 ),
-                3: gpiod.LineSettings(
+                OPDPOWPIN: gpiod.LineSettings(
                     direction=Direction.OUTPUT, output_value=Value.ACTIVE
                 )
             }
         )
         self.usbPath = usbPath
-        self.OPDState = OpdPowerState.idling
-        self.SDState = BusShutdownState.idling
+        self.OPDState = OpdPowerState.asserting
+        self.SDState = BusShutdownState.asserting
         self.ina226 = INA226(self.i2c, 0x40)
         #print("ina226 is ", self.ina226)
         #except Exception as e:
@@ -201,7 +201,7 @@ def getMcp2221a(gpiodev):
     i2cGpioPath = (i2cGpioPrefix + "/" + runCommand(f"ls {i2cGpioPrefix} | grep 0003:04D8:00DD").decode()).strip()
     i2c = "/dev/" + runCommand(f"ls {i2cGpioPath} | grep i2c").decode().strip()
     gpio = "/dev/" + runCommand(f"ls {i2cGpioPath} | grep gpiochip").decode().strip()
-    logger.info("{i2c}, {gpio}, {tty}")
+    logger.info(f"{i2c}, {gpio}, {tty}")
 
     return Mcp2221a(i2c, tty, gpio, usbPath)
 

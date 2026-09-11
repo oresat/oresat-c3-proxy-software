@@ -128,7 +128,8 @@ class MainWindow(QMainWindow):
 
                 #opdList.addItem(f"{row[0]}, {row[1]}, {self.chips[self.selectedChip].probe_addr(row[1])}")
 
-        logger.info(f"current: {chip.ina226.current_mA}mA, voltage: {chip.ina226.bus_voltage}V")
+        logger.info("current: {:.3f}mA, voltage: {:.3f}V".format(chip.ina226.current_mA, chip.ina226.bus_voltage))
+
 
 
 

@@ -1,12 +1,12 @@
 from enum import Enum
 
 class OpdPowerState(Enum):
-    asserting = 0
-    idling = 1
+    powered = 0
+    unpowered = 1
 
 class BusShutdownState(Enum):
-    asserting = 0
-    idling = 1
+    shutdown = 0
+    nominal = 1
 
 
 OPD_I2C_ADDRESS_PROTOCARD     = 0x10

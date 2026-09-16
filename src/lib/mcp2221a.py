@@ -40,8 +40,8 @@ class Mcp2221a:
             }
         )
         self.usbPath = usbPath
-        self.OPDState = OpdPowerState.asserting
-        self.SDState = BusShutdownState.asserting
+        self.OPDState = OpdPowerState.unpowered
+        self.SDState = BusShutdownState.shutdown
         self.ina226 = INA226(self.i2c, 0x40)
         #print("ina226 is ", self.ina226)
         #except Exception as e:
@@ -58,35 +58,41 @@ class Mcp2221a:
 #        return request
 
 
-    def toggleSD(self):
-            logging.debug(f"toggling power on: {self}")
+    def toggleSD(self) -> BusShutdownState:
+        logging.debug(f"toggling shutdown: {self}")
 
-        #try:
-            req = self.gpioReq
-            if self.SDState == BusShutdownState.idling:
+        req = self.gpioReq
+        match self.SDState:
+            case BusShutdownState.shutdown:
                 req.set_value(SHUTDOWNPIN, Value.ACTIVE)
-                self.SDState = BusShutdownState.asserting
-            elif self.SDState == BusShutdownState.asserting:
+                self.SDState = BusShutdownState.nominal
+                return BusShutdownState.nominal
+            case BusShutdownState.nominal:
                 req.set_value(SHUTDOWNPIN, Value.INACTIVE)
-                self.SDState = BusShutdownState.idling
-        #except Exception:
-        #    print(Exception)
+                self.SDState = BusShutdownState.shutdown
+                return BusShutdownState.shutdown
+            case _:
+                raise RuntimeError("state doesn't make sense")
+
 
     def toggleOPDPWR(self):
-        logger.debug(f"toggling OPD_PWR on {self}")
+        logger.debug(f"toggling OPD_PWR: {self}")
 
-        try:
-            #with self.gpioReq as req:
-            req = self.gpioReq
-            if self.OPDState == OpdPowerState.idling:
-                req.set_value(OPDPOWPIN, Value.ACTIVE)
-                self.OPDState = OpdPowerState.asserting
-            elif self.OPDState == OpdPowerState.asserting:
+        req = self.gpioReq
+        logger.debug(f"state when invoked was: {self.OPDState}")
+        match self.OPDState:
+            #the OPD_PWR pin uses inverted logic
+            case OpdPowerState.unpowered:
                 req.set_value(OPDPOWPIN, Value.INACTIVE)
-                self.OPDState = OpdPowerState.idling
+                self.OPDState = OpdPowerState.powered
+                return OpdPowerState.powered
+            case OpdPowerState.powered:
+                req.set_value(OPDPOWPIN, Value.ACTIVE)
+                self.OPDState = OpdPowerState.unpowered
+                return OpdPowerState.unpowered
+            case _:
+                raise RuntimeError("state doesn't make sense")
 
-        except Exception:
-            logger.debug(Exception)
 
     def probe_addr(self, addr):
         #with SMBus(self.i2c) as bus:

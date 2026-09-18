@@ -57,41 +57,46 @@ class Mcp2221a:
 #        request = Chip(self.gpio)
 #        return request
 
+    def setSD(self, state: BusShutdownState):
+        logger.debug(f"setting nSD pin to: {state}")
+        req = self.gpioReq
+        match state:
+            case BusShutdownState.nominal:
+                req.set_value(SHUTDOWNPIN, Value.ACTIVE)
+                self.SDState = BusShutdownState.nominal
+            case BusShutdownState.shutdown:
+                req.set_value(SHUTDOWNPIN, Value.INACTIVE)
+                self.SDState = BusShutdownState.shutdown
+            case _:
+                raise RuntimeError("state doesn't make sense")
+
 
     def toggleSD(self) -> BusShutdownState:
         logging.debug(f"toggling shutdown: {self}")
+        self.setSD(self.SDState.next())
+        return self.SDState
 
+
+    def setOPDPWR(self, state: OpdPowerState):
+        logger.debug(f"setting OPD_PWR to: {state}")
         req = self.gpioReq
-        match self.SDState:
-            case BusShutdownState.shutdown:
-                req.set_value(SHUTDOWNPIN, Value.ACTIVE)
-                self.SDState = BusShutdownState.nominal
-                return BusShutdownState.nominal
-            case BusShutdownState.nominal:
-                req.set_value(SHUTDOWNPIN, Value.INACTIVE)
-                self.SDState = BusShutdownState.shutdown
-                return BusShutdownState.shutdown
-            case _:
-                raise RuntimeError("state doesn't make sense")
-
-
-    def toggleOPDPWR(self):
-        logger.debug(f"toggling OPD_PWR: {self}")
-
-        req = self.gpioReq
-        logger.debug(f"state when invoked was: {self.OPDState}")
-        match self.OPDState:
+        match state:
             #the OPD_PWR pin uses inverted logic
-            case OpdPowerState.unpowered:
+            case OpdPowerState.powered:
                 req.set_value(OPDPOWPIN, Value.INACTIVE)
                 self.OPDState = OpdPowerState.powered
-                return OpdPowerState.powered
-            case OpdPowerState.powered:
+            case OpdPowerState.unpowered:
                 req.set_value(OPDPOWPIN, Value.ACTIVE)
                 self.OPDState = OpdPowerState.unpowered
-                return OpdPowerState.unpowered
             case _:
                 raise RuntimeError("state doesn't make sense")
+
+
+    def toggleOPDPWR(self) -> OpdPowerState:
+        logger.debug(f"toggling OPD_PWR: {self}")
+
+        self.setOPDPWR(self.OPDState.next())
+        return(self.OPDState)
 
 
     def probe_addr(self, addr):
@@ -130,47 +135,90 @@ class Mcp2221a:
             logger.error(f"Failed to write to address 0x{addr} reg=0x{reg} - {e}")
 
     def opd_en_pin_mode(self, i2c_addr):
-        result = self.i2c_read_reg(i2c_addr, MAX7310_AD_MODE)
-        result &= ~(1 << OPD_EN)  # Set the EN pin to output mode
-        result = bytearray([result])
+        #result = self.i2c_read_reg(i2c_addr, MAX7310_AD_MODE)
+        #result &= ~(1 << OPD_EN)  # Set the EN pin to output mode
+        result = 0b11110111
         #print("result is ", result, type(result), " length is: ", len(result))
-        self.i2c_write_reg(i2c_addr, MAX7310_AD_MODE, result)
+        self.i2c_write_reg(i2c_addr, MAX7310_AD_MODE, bytes([result]))
+        self.read_max7310_reg(i2c_addr, MAX7310_AD_MODE)
 
-    def opt_print_status(self, i2c_addr):
+    def opd_print_status(self, i2c_addr):
         print("====================")
         result = self.i2c_read_reg(i2c_addr, MAX7310_AD_INPUT)
-        print("MAX7310_AD_INPUT = 0x%X" % result[0])
+        print("MAX7310_AD_INPUT = 0x%X" % result)
 
         result = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
-        print("MAX7310_AD_ODR   = 0x%X" % result[0])
+        print("MAX7310_AD_ODR   = 0x%X" % result)
 
         result = self.i2c_read_reg(i2c_addr, MAX7310_AD_POL)
-        print("MAX7310_AD_POL   = 0x%X" % result[0])
+        print("MAX7310_AD_POL   = 0x%X" % result)
 
         result = self.i2c_read_reg(i2c_addr, MAX7310_AD_MODE)
-        print("MAX7310_AD_MODE  = 0x%X" % result[0])
+        print("MAX7310_AD_MODE  = 0x%X" % result)
+
+
+    def read_max7310_reg(self, i2c_addr, reg):
+        result = self.i2c_read_reg(i2c_addr, reg)
+        logger.debug(f"read register, got: {result}")
+        return result
+
+    def read_max7310_pin(self, i2c_addr, pin_num):
+        result = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
+        result &= (1 << pin_num)
+        logger.debug(f"read gpio #{pin_num}, got: {result}")
+        #self.opd_print_status(i2c_addr)
+
+        return result
 
 
     def set_max7310_pin(self, i2c_addr, pin_num):
         result = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
+        logger.info(f"setting pin #{pin_num}, read: {result}")
         result |= (1 << pin_num)
-        #result = bytes(result)
-        logger.info(f"setting pin, result: {result}")
+        #result = self.read_max7310_pin(i2c_addr, pin_num)
+        logger.info(f"setting pin #{pin_num}, writing back: {result}")
         self.i2c_write_reg(i2c_addr, MAX7310_AD_ODR, bytes([result]))
         return
 
+
     def clear_max7310_pin(self, i2c_addr, pin_num):
         result = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
+        logger.info(f"clearing pin #{pin_num}, read: {result}")
         result &= ~(1 << pin_num)
-        self.i2c_write_reg(i2c_addr, MAX7310_AD_ODR, bytes(result))
+        logger.info(f"clearing pin #{pin_num}, writing back: {result}")
+        self.i2c_write_reg(i2c_addr, MAX7310_AD_ODR, bytes([result]))
 
-    def opd_enable_disable_node(self, i2c_addr, enable_flag):
+
+    def opd_enable_disable_node(self, i2c_addr, enable_flag) -> OpdCardState | None:
+        logger.debug(f"calling opd_enable_disable_node with addr: {i2c_addr}, flag: {enable_flag}")
         self.opd_en_pin_mode(i2c_addr)
         if enable_flag:
             self.set_max7310_pin(i2c_addr, OPD_EN)
         else:
             self.clear_max7310_pin(i2c_addr, OPD_EN)
-        return
+
+        #for idx in range(5):
+        #    reg = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
+        #    logger.debug(f"register contains {reg}, idx: {idx}")
+        #    time.sleep(1)
+
+
+
+
+
+
+        #read the register back and return the state it's in
+        readback = self.read_max7310_pin(i2c_addr, OPD_EN)
+        logger.debug(f" readback is {readback}")
+        if readback == 0:
+            if enable_flag:
+                logger.error("gpio pin write failed, pin didn't go high")
+            return OpdCardState.unpowered
+        else:
+            if not enable_flag:
+                logger.error("gpio pin clear failed, pin didn't go low")
+            return OpdCardState.powered
+
 
 
 #mychip = Mcp2221a("a", "b", "c", "idk")
@@ -223,12 +271,12 @@ def getMcp2221as():
     for line in gpioResult.decode().splitlines():
         if 'mcp2221' in line:
             gpioDevices.append(line.split()[0])
-    logger.info(gpioDevices)
+    logger.info(f"gpiodevices: {gpioDevices}")
 
     for gpioDevice in gpioDevices:
         rtn.append(getMcp2221a(gpioDevice))
 
     return rtn
 
-getMcp2221as()
+#getMcp2221as()
 

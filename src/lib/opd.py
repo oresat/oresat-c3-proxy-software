@@ -1,12 +1,41 @@
-from enum import Enum
+from enum import auto, IntEnum, Enum, EnumType
+from itertools import cycle
+import logging
+logger = logging.getLogger()
 
 class OpdPowerState(Enum):
-    powered = 0
-    unpowered = 1
+    powered = auto()
+    unpowered = auto()
+
+    #expects instances to be ascending monotonic ints
+    def next(self) -> OpdPowerState:
+        length = self.__class__.__len__()
+        #auto() starts at one, so modulo is strange
+        new = ( self.value % length ) + 1
+        return OpdPowerState(new)
+
+class OpdCardState(Enum):
+    powered = auto()
+    unpowered = auto()
+
+    #expects instances to be ascending monotonic ints
+    def next(self) -> OpdCardState:
+        length = self.__class__.__len__()
+        #auto() starts at one, so modulo is strange
+        new = ( self.value % length ) + 1
+        return OpdCardState(new)
+
 
 class BusShutdownState(Enum):
-    shutdown = 0
-    nominal = 1
+    shutdown = auto()
+    nominal = auto()
+
+    #expects instances to be ascending monotonic ints
+    def next(self) ->BusShutdownState:
+        length = self.__class__.__len__()
+        new = ( self.value % length ) + 1
+        return BusShutdownState(new)
+
 
 
 OPD_I2C_ADDRESS_PROTOCARD     = 0x10

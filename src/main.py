@@ -2,7 +2,7 @@ import sys
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QPushButton, QMainWindow, QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QSplitter, QListWidget, QListWidgetItem
 from lib.mcp2221a import Mcp2221a, getMcp2221as
-from lib.opd import BusShutdownState, OpdPowerState, opd_table
+from lib.opd import BusShutdownState, OpdCardState, OpdPowerState, opd_table
 from smbus2 import i2c_msg
 import logging
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 #        super().__init__(self, text, type=super().ItemType.UserType)
 
 
-class OPDPushButton(QPushButton):
+class OPDPWRPushButton(QPushButton):
     def __init__(self, text, chip: Mcp2221a):
         super().__init__()
         self.setText(text)
@@ -48,6 +48,32 @@ class SDPushButton(QPushButton):
                 self.setStyleSheet("background-color: green")
             case _:
                 raise RunTimeError("toggleSD returned unknown value")
+
+class OPDCardPushButton(QPushButton):
+    def __init__(self, text, chip: Mcp2221a, cardID: int):
+        super().__init__()
+        self.setText(text)
+        self.clicked.connect(self.toggle_card)
+        self.chip = chip
+        self.id = cardID
+        self.state = OpdCardState.unpowered
+        self.updateState()
+
+    def updateState(self):
+        match self.state:
+            case OpdCardState.unpowered:
+                self.setStyleSheet("background-color: red")
+            case OpdCardState.powered:
+                self.setStyleSheet("background-color: green")
+            case _:
+                raise RuntimeError("button state doesn't make sense")
+
+    def toggle_card(self):
+        #match self.chip.toggleOPDPWR():
+        logger.debug(f"TOGGLING CARD #{self.id}")
+        next = True if self.state.next() == OpdCardState.powered else False
+        self.state = self.chip.opd_enable_disable_node(self.id, next)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -93,15 +119,12 @@ class MainWindow(QMainWindow):
             itemWidget = QWidget()
             itemWidget.setFixedSize(350, 20)
             lineText = QLabel(f"{idx}: {chip.usbPath.decode()}")
-            opdPushButton = OPDPushButton("OPD_PWR", chip)
+            opdPushButton = OPDPWRPushButton("OPD_PWR", chip)
             opdPushButton.setObjectName(str(idx))
             sdPushButton = SDPushButton("SD", chip)
             sdPushButton.setObjectName(str(idx))
             logger.info(f"idx is {idx}")
             #create a new scope with another lambda so they stay seperate between loop iterations
-            #OPDPushButton
-            #oPDPushButton.clicked.connect((lambda c: lambda : c.toggleOPDPWR())(chip))
-            #sDPushButton.clicked.connect((lambda c: lambda : c.toggleSD())(chip))
             itemLayout = QHBoxLayout(itemWidget)
             itemLayout.setContentsMargins(10, 4, 5, 2)
             itemLayout.addWidget(lineText)
@@ -142,6 +165,12 @@ class MainWindow(QMainWindow):
         ##read  = i2c_msg.read(0x40, 2)          # read 2 bytes back
         #self.chips[self.selectedChip].i2c.write_block_data(address, reg, buf)
 
+        logger.debug(f"selected chip is {self.selectedChip}, self.chips is {self.chips}")
+
+        if (len(self.chips) == 0):
+            logger.debug("no chips detected")
+            return
+
         chip = self.chips[self.selectedChip]
 
         for row in opd_table:
@@ -153,8 +182,8 @@ class MainWindow(QMainWindow):
                 widget.setFixedSize(350, 20)
 
                 label = QLabel(f"{row[0]}, {row[1]}")
-                opdButton = QPushButton("Enable")
-                opdButton.clicked.connect((lambda _row : lambda : chip.opd_enable_disable_node(_row[1], True))(row))
+                opdButton = OPDCardPushButton("toggle OPD", chip, int(row[1]))
+                opdButton.clicked.connect((lambda  : lambda : opdButton.toggle_card)())
                 layout = QHBoxLayout(widget)
                 layout.setContentsMargins(5, 2, 5, 2)
                 layout.addWidget(label)
@@ -181,25 +210,18 @@ class MainWindow(QMainWindow):
 
 
     def drawChipSelector(self, parent: QSplitter):
-        pane = QSplitter(QtCore.Qt.Orientation.Vertical, parent)
-        pane.setChildrenCollapsible(False)
-        pane.setHandleWidth(0)
-        layout = QHBoxLayout()
-        layout.addWidget(pane)
-
-        self.chipSelector = QListWidget(pane)
-        self.chipSelector.itemClicked.connect(self.chipSelected)
-
-        title = QLabel("Chip Selector")
-        title.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        label = QLabel("Chip Selector", parent)
         refreshButton = QPushButton(text="REFRESH")
         refreshButton.clicked.connect(self.updateChipSelector)
+
+        self.chipSelector = QListWidget(parent)
+        self.chipSelector.itemClicked.connect(self.chipSelected)
         self.scanChips()
 
-        pane.addWidget(title)
-        pane.addWidget(self.chipSelector)
-        pane.addWidget(refreshButton)
-        parent.addWidget(pane)
+        layout = QVBoxLayout(parent)
+        layout.addWidget(label)
+        layout.addWidget(self.chipSelector)
+        layout.addWidget(refreshButton)
 
 
     def drawSidePanel(self, parent: QSplitter):

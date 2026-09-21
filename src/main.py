@@ -2,9 +2,11 @@ import sys
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QPushButton, QMainWindow, QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QSplitter, QListWidget, QListWidgetItem
 from lib.mcp2221a import Mcp2221a, getMcp2221as
-from lib.opd import BusShutdownState, OpdCardState, OpdPowerState, opd_table
+from lib.opd import MAX7310_AD_POL, BusShutdownState, OpdCardState, OpdPowerState, opd_table
 from smbus2 import i2c_msg
+import pyqtgraph as pg
 import logging
+import numpy as np
 logger = logging.getLogger(__name__)
 
 #python inheritence is dumb dumb stoopid
@@ -74,6 +76,38 @@ class OPDCardPushButton(QPushButton):
         next = True if self.state.next() == OpdCardState.powered else False
         self.state = self.chip.opd_enable_disable_node(self.id, next)
 
+class RollingPlot():
+    def __init__(self, parent: QWidget, outer: MainWindow):
+        self.graphWidget = pg.PlotWidget()
+        #self.setCentralWidget(self.graphWidget)
+
+        self.x = np.arange(200)
+        self.y = np.zeros(200)
+        self.outer = outer
+
+        self.graphWidget.setBackground("w")
+        self.graphWidget.setTitle("Live Sensor Data")
+        self.graphWidget.setLabel("left", "Amplitude")
+        self.graphWidget.setLabel("bottom", "Time")
+
+        pen = pg.mkPen(color=(255, 0, 0), width=2)
+        self.data_line = self.graphWidget.plot(self.x, self.y, pen=pen)
+
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(25)
+        self.timer.timeout.connect(self.update_plot_data)
+        self.timer.start()
+
+    def update_plot_data(self):
+        self.x = np.roll(self.x, -1)
+        self.x[-1] = self.x[-2] + 1
+
+        self.y = np.roll(self.y, -1)
+        sample = self.outer.chips[self.outer.selectedChip].ina226.current_mA
+        self.y[-1] = sample
+        logger.debug(f"reading data {sample}")
+        self.data_line.setData(self.x, self.y)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -82,8 +116,11 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("C3-Proxy Software")
         self.selectedChip = 0
         self.chipSelector = None
-        self.chips = []
+        self.chips: list[Mcp2221a] = []
+        self.plot: RollingPlot
         self.initUI()
+
+
 
 
 #    def toggleOPD(self, idx):
@@ -147,6 +184,7 @@ class MainWindow(QMainWindow):
     def chipSelected(self, item):
         #this is super jank, but inhereting the QListWidgetItem is really weird and stinky, + this works + ratio + bozo no CS degree   ~\(:/)/~
         self.selectedChip = self.chipSelector.row(item)#item.text()[0]
+        self.plot.update_plot_data()
         logger.info(f"chip selected {self.selectedChip}")
 
 
@@ -175,7 +213,10 @@ class MainWindow(QMainWindow):
 
         for row in opd_table:
 
+            addr = row[1]
             if(chip.probe_addr(row[1])):
+
+                chip.max7310_initialize(addr)
 
                 item = QListWidgetItem(opdList)
                 widget = QWidget()
@@ -240,7 +281,6 @@ class MainWindow(QMainWindow):
         self.drawOpdMenu(opdMenu)
         splitter.addWidget(opdMenu)
 
-
     def initUI(self):
         root = QWidget()
         self.setCentralWidget(root)
@@ -251,13 +291,14 @@ class MainWindow(QMainWindow):
         self.drawSidePanel(splitter)
         #self.updateChipSelector()
 
-        label2 = QLabel("REPLACE MEEEE", self)
+        #label2 = QLabel("REPLACE MEEEE", self)
         #label2.setStyleSheet("background-color: grey")
+        self.plot = RollingPlot(root, self)
 
         layout.addWidget(splitter)
         root.setLayout(layout)
         splitter.setChildrenCollapsible(False)
-        splitter.addWidget(label2)
+        splitter.addWidget(self.plot.graphWidget)
 
 
 def main():

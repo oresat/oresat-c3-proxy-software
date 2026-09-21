@@ -119,27 +119,29 @@ class Mcp2221a:
         #with SMBus(self.i2c) as bus:
         try:
             val = self.i2c.read_byte_data(addr, reg)
-            logging.debug(f"i2c read value: {val}")
+            logging.debug(f"i2c read reg: {reg:#02x}, value: {val:#02x}")
             return val
         except Exception as e:
-            logger.error(f"Failed to read from i2c address 0x{addr} - {e}")
+            logger.error(f"Failed to read from i2c address {addr:#02x} - {e}")
 
     def i2c_write_reg(self, addr, reg, data):
         #with SMBus(self.i2c) as bus:
+        #logger.debug(f"LENGTH OF DATA {type(data)}, {len(data)}")
+        logging.debug(f"i2c write reg: {reg:#02x}, value: {data.hex()}")
         buf = bytearray(1)
         buf[0] = reg
         buf.extend(bytes(data))
         try:
             return self.i2c.write_block_data(addr, reg, buf)
         except Exception as e:
-            logger.error(f"Failed to write to address 0x{addr} reg=0x{reg} - {e}")
+            logger.error(f"Failed to write to address {addr:#02x} reg={reg:#02x} - {e}")
 
     def opd_en_pin_mode(self, i2c_addr):
         #result = self.i2c_read_reg(i2c_addr, MAX7310_AD_MODE)
         #result &= ~(1 << OPD_EN)  # Set the EN pin to output mode
-        result = 0b11110111
+        #result = 0b11110111
         #print("result is ", result, type(result), " length is: ", len(result))
-        self.i2c_write_reg(i2c_addr, MAX7310_AD_MODE, bytes([result]))
+        #self.i2c_write_reg(i2c_addr, MAX7310_AD_MODE, bytes([result]))
         self.read_max7310_reg(i2c_addr, MAX7310_AD_MODE)
 
     def opd_print_status(self, i2c_addr):
@@ -157,15 +159,36 @@ class Mcp2221a:
         print("MAX7310_AD_MODE  = 0x%X" % result)
 
 
+    def max7310_initialize(self, i2c_addr):
+        logger.debug(f"configuring card at addr {i2c_addr:#02x}")
+        #configure inversion register
+        resetData = bytes([0])
+        self.i2c_write_reg(i2c_addr, MAX7310_AD_POL, resetData)
+        #set outputs as high/low
+        self.clear_max7310_pin(i2c_addr, OPD_EN)
+        self.clear_max7310_pin(i2c_addr, OPD_CB_RESET)
+        self.set_max7310_pin(i2c_addr, OPD_BOOT0)
+        self.set_max7310_pin(i2c_addr, OPD_BOOT0)
+
+        #configure output pins
+        config = 255
+        config &= ~(1 << OPD_EN)
+        config &= ~(1 << OPD_CB_RESET)
+        config &= ~(1 << OPD_BOOT0)
+        config &= ~(1 << OPD_PIN7)
+        logger.debug(f"config byte is {config:#02x}")
+        self.i2c_write_reg(i2c_addr, MAX7310_AD_MODE, bytes([config]))
+
+
     def read_max7310_reg(self, i2c_addr, reg):
         result = self.i2c_read_reg(i2c_addr, reg)
-        logger.debug(f"read register, got: {result}")
+        logger.debug(f"read register #{reg} got: {result:#02x}")
         return result
 
     def read_max7310_pin(self, i2c_addr, pin_num):
         result = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
         result &= (1 << pin_num)
-        logger.debug(f"read gpio #{pin_num}, got: {result}")
+        logger.debug(f"read gpio #{pin_num}, got: {result:#02x}")
         #self.opd_print_status(i2c_addr)
 
         return result
@@ -173,43 +196,41 @@ class Mcp2221a:
 
     def set_max7310_pin(self, i2c_addr, pin_num):
         result = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
-        logger.info(f"setting pin #{pin_num}, read: {result}")
+        logger.info(f"setting pin #{pin_num}, read: {result:02x}")
         result |= (1 << pin_num)
         #result = self.read_max7310_pin(i2c_addr, pin_num)
-        logger.info(f"setting pin #{pin_num}, writing back: {result}")
+        logger.info(f"setting pin #{pin_num}, writing back: {result:02x}")
         self.i2c_write_reg(i2c_addr, MAX7310_AD_ODR, bytes([result]))
         return
 
 
     def clear_max7310_pin(self, i2c_addr, pin_num):
         result = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
-        logger.info(f"clearing pin #{pin_num}, read: {result}")
+        logger.info(f"clearing pin #{pin_num}, read: {result:#02x}")
         result &= ~(1 << pin_num)
-        logger.info(f"clearing pin #{pin_num}, writing back: {result}")
+        logger.info(f"clearing pin #{pin_num}, writing back: {result:#02x}")
         self.i2c_write_reg(i2c_addr, MAX7310_AD_ODR, bytes([result]))
 
 
     def opd_enable_disable_node(self, i2c_addr, enable_flag) -> OpdCardState | None:
-        logger.debug(f"calling opd_enable_disable_node with addr: {i2c_addr}, flag: {enable_flag}")
-        self.opd_en_pin_mode(i2c_addr)
+        logger.debug(f"calling opd_enable_disable_node with addr: {i2c_addr:02x}, flag: {enable_flag:02x}")
+        #self.max7310_initialize(i2c_addr)
         if enable_flag:
             self.set_max7310_pin(i2c_addr, OPD_EN)
         else:
             self.clear_max7310_pin(i2c_addr, OPD_EN)
 
         #for idx in range(5):
-        #    reg = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
-        #    logger.debug(f"register contains {reg}, idx: {idx}")
+        reg = self.i2c_read_reg(i2c_addr, MAX7310_AD_ODR)
+        logger.debug(f"register contains {reg:#02x}")
         #    time.sleep(1)
 
-
-
-
+        logger.debug(f" the input register has: {self.read_max7310_reg(i2c_addr, MAX7310_AD_INPUT):#02x}")
 
 
         #read the register back and return the state it's in
         readback = self.read_max7310_pin(i2c_addr, OPD_EN)
-        logger.debug(f" readback is {readback}")
+        logger.debug(f" readback is {readback:#02x}")
         if readback == 0:
             if enable_flag:
                 logger.error("gpio pin write failed, pin didn't go high")
@@ -218,6 +239,7 @@ class Mcp2221a:
             if not enable_flag:
                 logger.error("gpio pin clear failed, pin didn't go low")
             return OpdCardState.powered
+
 
 
 

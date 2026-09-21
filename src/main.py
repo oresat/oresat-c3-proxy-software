@@ -1,6 +1,6 @@
 import sys
-from PyQt6 import QtWidgets, QtCore, QtGui
-from PyQt6.QtWidgets import QPushButton, QMainWindow, QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QSplitter, QListWidget, QListWidgetItem
+from PySide6 import QtWidgets, QtCore, QtGui
+from PySide6.QtWidgets import QPushButton, QMainWindow, QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QSplitter, QListWidget, QListWidgetItem
 from lib.mcp2221a import Mcp2221a, getMcp2221as
 from lib.opd import MAX7310_AD_POL, BusShutdownState, OpdCardState, OpdPowerState, opd_table
 from smbus2 import i2c_msg

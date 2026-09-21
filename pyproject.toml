@@ -1,0 +1,21 @@
+[project]
+name = "c3-proxy software"
+version = "0.1.0"
+description = "Graphical interface for the c3-proxy infrastructure and testing board of the OreSat project"
+readme = "README.md"
+authors = [{ name = "Elliott Day", email = "ellda@pdx.edu"}]
+
+#TODO: idk what reasonable versions are here
+requires-python = ">=3.14"
+dependencies = [
+    "pyside6",
+    "numpy",
+    "smbus2",
+    "gpiod",
+    "pyqtgraph",
+]
+
+
+
+
+

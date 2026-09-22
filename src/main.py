@@ -1,8 +1,8 @@
 import sys
 from PySide6 import QtWidgets, QtCore, QtGui
-from PySide6.QtWidgets import QPushButton, QMainWindow, QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QSplitter, QListWidget, QListWidgetItem
+from PySide6.QtWidgets import QPushButton, QMainWindow, QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QSplitter, QListWidget, QListWidgetItem, QSizePolicy
 from lib.mcp2221a import Mcp2221a, getMcp2221as
-from lib.opd import MAX7310_AD_POL, BusShutdownState, OpdCardState, OpdPowerState, opd_table
+from lib.opd import Max7310Pin, Max7310Reg, OpdAddress, BusShutdownState, OpdCardState, OpdPowerState, opd_table, IspModeState, UartState, CBResetState
 from smbus2 import i2c_msg
 import pyqtgraph as pg
 import logging
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 #    def __init__(self, text):
 #        super().__init__(self, text, type=super().ItemType.UserType)
 
+MENUBARWIDTH= 300
 
 class OPDPWRPushButton(QPushButton):
     def __init__(self, text, chip: Mcp2221a):
@@ -51,11 +52,11 @@ class SDPushButton(QPushButton):
             case _:
                 raise RunTimeError("toggleSD returned unknown value")
 
-class OPDCardPushButton(QPushButton):
+class OPDENPushButton(QPushButton):
     def __init__(self, text, chip: Mcp2221a, cardID: int):
         super().__init__()
         self.setText(text)
-        self.clicked.connect(self.toggle_card)
+        self.clicked.connect(self.toggle_EN)
         self.chip = chip
         self.id = cardID
         self.state = OpdCardState.unpowered
@@ -70,15 +71,104 @@ class OPDCardPushButton(QPushButton):
             case _:
                 raise RuntimeError("button state doesn't make sense")
 
-    def toggle_card(self):
+    def toggle_EN(self):
         #match self.chip.toggleOPDPWR():
         logger.debug(f"TOGGLING CARD #{self.id}")
         next = True if self.state.next() == OpdCardState.powered else False
-        self.state = self.chip.opd_enable_disable_node(self.id, next)
+        self.state = self.chip.set_node_EN(self.id, next)
+        self.updateState()
+
+class OPDIspPushButton(QPushButton):
+    def __init__(self, text, chip: Mcp2221a, cardID: int):
+        super().__init__()
+        self.setText(text)
+        self.clicked.connect(self.toggle_isp)
+        self.chip = chip
+        self.id = cardID
+        self.state = IspModeState.disabled
+        self.updateState()
+
+    def updateState(self):
+        match self.state:
+            case IspModeState.disabled:
+                self.setStyleSheet("background-color: red")
+            case IspModeState.enabled:
+                self.setStyleSheet("background-color: green")
+            case _:
+                raise RuntimeError("button state doesn't make sense")
+
+    def toggle_isp(self):
+        #match self.chip.toggleOPDPWR():
+        logger.debug(f"TOGGLING ISPMODE FOR CARD #{self.id}, current state is: {self.state}")
+        newstate = self.state.next()
+        logger.debug(f" new state is {newstate}")
+        next = True if newstate == IspModeState.enabled else False
+        self.state = self.chip.set_node_ISP(self.id, next)
+        self.updateState()
+
+class OPDUartPushButton(QPushButton):
+    def __init__(self, text, chip: Mcp2221a, cardID: int):
+        super().__init__()
+        self.setText(text)
+        self.clicked.connect(self.toggle_uart)
+        self.chip = chip
+        self.id = cardID
+        self.state = UartState.disabled
+        self.updateState()
+
+    def updateState(self):
+        match self.state:
+            case UartState.disabled:
+                self.setStyleSheet("background-color: red")
+            case UartState.enabled:
+                self.setStyleSheet("background-color: green")
+            case _:
+                raise RuntimeError("button state doesn't make sense")
+
+    def toggle_uart(self):
+        #match self.chip.toggleOPDPWR():
+        logger.debug(f"TOGGLING UART FOR CARD #{self.id}, current state is: {self.state}")
+        newstate = self.state.next()
+        logger.debug(f" new state is {newstate}")
+        next = True if newstate == UartState.enabled else False
+        self.state = self.chip.set_node_UART(self.id, next)
+        self.updateState()
+
+class OPDCBResetPushButton(QPushButton):
+    def __init__(self, text, chip: Mcp2221a, cardID: int):
+        super().__init__()
+        self.setText(text)
+        self.clicked.connect(self.toggle_cb_reset)
+        self.chip = chip
+        self.id = cardID
+        self.state = CBResetState.disabled
+        self.updateState()
+
+    def updateState(self):
+        match self.state:
+            case CBResetState.disabled:
+                self.setStyleSheet("background-color: red")
+            case CBResetState.enabled:
+                self.setStyleSheet("background-color: green")
+            case _:
+                raise RuntimeError("button state doesn't make sense")
+
+    def toggle_cb_reset(self):
+        #match self.chip.toggleOPDPWR():
+        logger.debug(f"TOGGLING CB RESET FOR CARD #{self.id}, current state is: {self.state}")
+        newstate = self.state.next()
+        logger.debug(f" new state is {newstate}")
+        next = True if newstate == CBResetState.enabled else False
+        self.state = self.chip.set_node_CB_RESET(self.id, next)
+        self.updateState()
+
+
+
 
 class RollingPlot():
     def __init__(self, parent: QWidget, outer: MainWindow):
         self.graphWidget = pg.PlotWidget()
+        self.graphWidget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         #self.setCentralWidget(self.graphWidget)
 
         self.x = np.arange(200)
@@ -86,8 +176,8 @@ class RollingPlot():
         self.outer = outer
 
         self.graphWidget.setBackground("w")
-        self.graphWidget.setTitle("Live Sensor Data")
-        self.graphWidget.setLabel("left", "Amplitude")
+        self.graphWidget.setTitle("card current consumption")
+        self.graphWidget.setLabel("left", "mA")
         self.graphWidget.setLabel("bottom", "Time")
 
         pen = pg.mkPen(color=(255, 0, 0), width=2)
@@ -154,8 +244,9 @@ class MainWindow(QMainWindow):
         for idx, chip in enumerate(self.chips):
             item = QListWidgetItem(self.chipSelector)
             itemWidget = QWidget()
-            itemWidget.setFixedSize(350, 20)
+            itemWidget.setFixedSize(MENUBARWIDTH, 20)
             lineText = QLabel(f"{idx}: {chip.usbPath.decode()}")
+            lineText.setSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Minimum)
             opdPushButton = OPDPWRPushButton("OPD_PWR", chip)
             opdPushButton.setObjectName(str(idx))
             sdPushButton = SDPushButton("SD", chip)
@@ -163,9 +254,9 @@ class MainWindow(QMainWindow):
             logger.info(f"idx is {idx}")
             #create a new scope with another lambda so they stay seperate between loop iterations
             itemLayout = QHBoxLayout(itemWidget)
-            itemLayout.setContentsMargins(10, 4, 5, 2)
+            itemLayout.setContentsMargins(10, 2, 10, 2)
             itemLayout.addWidget(lineText)
-            itemLayout.addStretch()
+            #itemLayout.addStretch()
             itemLayout.addWidget(opdPushButton)
             itemLayout.addWidget(sdPushButton)
             self.chipSelector.addItem(item)
@@ -220,16 +311,29 @@ class MainWindow(QMainWindow):
 
                 item = QListWidgetItem(opdList)
                 widget = QWidget()
-                widget.setFixedSize(350, 20)
+                #widget.setFixedSize(MENUBARWIDTH, 20)
 
                 label = QLabel(f"{row[0]}, {row[1]}")
-                opdButton = OPDCardPushButton("toggle OPD", chip, int(row[1]))
-                opdButton.clicked.connect((lambda  : lambda : opdButton.toggle_card)())
+                enButton = OPDENPushButton("EN", chip, int(row[1]))
+                enButton.clicked.connect((lambda  : lambda : enButton.toggle_EN)())
+
+                ispButton = OPDIspPushButton("ISP", chip, int(row[1]))
+                ispButton.clicked.connect((lambda  : lambda : ispButton.toggle_isp)())
+                uartButton = OPDUartPushButton("UART", chip, int(row[1]))
+                uartButton.clicked.connect((lambda  : lambda : uartButton.toggle_uart)())
+                resetButton = OPDCBResetPushButton("CB-RESET", chip, int(row[1]))
+                resetButton.clicked.connect((lambda  : lambda : resetButton.toggle_cb_reset)())
+
+
+
                 layout = QHBoxLayout(widget)
-                layout.setContentsMargins(5, 2, 5, 2)
+                layout.setContentsMargins(10, 2, 10, 2)
                 layout.addWidget(label)
                 layout.addStretch()
-                layout.addWidget(opdButton)
+                layout.addWidget(enButton)
+                layout.addWidget(ispButton)
+                layout.addWidget(uartButton)
+                layout.addWidget(resetButton)
                 opdList.addItem(item)
                 opdList.setItemWidget(item, widget)
 
@@ -240,7 +344,10 @@ class MainWindow(QMainWindow):
 
     def drawOpdMenu(self, opdRoot: QWidget):
         label = QLabel("Opd Menu", opdRoot)
+        label.setSizePolicy(QtWidgets.QSizePolicy.Policy.MinimumExpanding, QtWidgets.QSizePolicy.Policy.Minimum)
         opdScanButton = QPushButton(text="scan")
+        opdScanButton.setSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
+        opdScanButton.setMinimumWidth(MENUBARWIDTH)
         opdList = QListWidget(opdRoot)
         opdScanButton.clicked.connect((lambda _list : lambda : self.updateOpdMenu(_list))(opdList))
         self.updateOpdMenu(opdList)
@@ -252,8 +359,12 @@ class MainWindow(QMainWindow):
 
     def drawChipSelector(self, parent: QSplitter):
         label = QLabel("Chip Selector", parent)
+        label.setSizePolicy(QtWidgets.QSizePolicy.Policy.MinimumExpanding, QtWidgets.QSizePolicy.Policy.Minimum)
         refreshButton = QPushButton(text="REFRESH")
         refreshButton.clicked.connect(self.updateChipSelector)
+        refreshButton.setSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
+        refreshButton.setMinimumWidth(MENUBARWIDTH)
+        #refreshButton.setMinimumHeight(50)
 
         self.chipSelector = QListWidget(parent)
         self.chipSelector.itemClicked.connect(self.chipSelected)
@@ -263,6 +374,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(label)
         layout.addWidget(self.chipSelector)
         layout.addWidget(refreshButton)
+        #layout.setSizeConstraints(QtWidgets.QLayout.SizeConstraint.SetMinimumSize, QtWidgets.QLayout.SizeConstraint.SetMinimumSize)
+        #layout.setHorizontalSizeConstraint(CHIPSELECTORWIDTH)
+        #layout.setMinimumWidth(CHIPSELECTORWIDTH)
 
 
     def drawSidePanel(self, parent: QSplitter):

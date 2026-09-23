@@ -250,7 +250,7 @@ class Mcp2221a:
 
         readback = self.read_max7310_pin(i2c_addr, Max7310Pin.OPD_BOOT0)
         if readback == 0:
-            if enable_flag:
+            if not enable_flag:
                 logger.error("failed to set isp pin, didn't go high")
             return IspModeState.enabled
         else:
@@ -266,32 +266,32 @@ class Mcp2221a:
             self.clear_max7310_pin(i2c_addr, Max7310Pin.OPD_PIN7)
 
         readback = self.read_max7310_pin(i2c_addr, Max7310Pin.OPD_PIN7)
-        if readback == 1:
-            if not enable_flag:
-                logger.error("failed to set uart pin, didn't go high")
-            return UartState.enabled
-        else:
+        if readback == 0:
             if enable_flag:
-                logger.error("failed to set uart pin, didn't go low")
+                logger.error("failed to set uart pin, didn't go high")
             return UartState.disabled
+        else:
+            if not enable_flag:
+                logger.error("failed to set uart pin, didn't go low")
+            return UartState.enabled
 
     def set_node_CB_RESET(self, i2c_addr: OpdAddress, enable_flag: bool):
         logger.debug(f"setting OPD_CB_RESET pin to: {enable_flag}")
-        #active low logic
+
         if enable_flag:
             self.set_max7310_pin(i2c_addr, Max7310Pin.OPD_CB_RESET)
         else:
             self.clear_max7310_pin(i2c_addr, Max7310Pin.OPD_CB_RESET)
 
         readback = self.read_max7310_pin(i2c_addr, Max7310Pin.OPD_CB_RESET)
-        if readback == 1:
-            if not enable_flag:
-                logger.error("failed to set cb-reset pin, didn't go high")
-            return CBResetState.enabled
-        else:
+        if readback == 0:
             if enable_flag:
-                logger.error("failed to set cb-reset pin, didn't go low")
+                logger.error("failed to set cb-reset pin, didn't go high")
             return CBResetState.disabled
+        else:
+            if not enable_flag:
+                logger.error("failed to set cb-reset pin, didn't go low")
+            return CBResetState.enabled
 
 
 
@@ -315,7 +315,7 @@ def runCommand(command):
     return result
 
 
-def getMcp2221a(gpiodev):
+def getMcp2221a(gpiodev) -> Mcp2221a:
     #run udevadm to get usb path to chip that provides said gpio
     #eg. DEVPATH=/devices/pci0000:00/0000:00:08.1/0000:c4:00.3/usb1/1-2/1-2.1/1-2.1:1.2/0003:04D8:00DD.005C/gpiochip2
     fullPath = runCommand(f"udevadm info --query=path /dev/{str(gpiodev)}")
@@ -337,7 +337,7 @@ def getMcp2221a(gpiodev):
 
 
 
-def getMcp2221as():
+def getMcp2221as() -> list[Mcp2221a]:
     rtn = []
 
     #TODO: add error handling

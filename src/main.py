@@ -6,6 +6,7 @@ from lib.opd import Max7310Pin, Max7310Reg, OpdAddress, BusShutdownState, OpdCar
 from smbus2 import i2c_msg
 import pyqtgraph as pg
 import logging
+import types
 import numpy as np
 logger = logging.getLogger(__name__)
 
@@ -162,17 +163,23 @@ class OPDCBResetPushButton(QPushButton):
         self.state = self.chip.set_node_CB_RESET(self.id, next)
         self.updateState()
 
-
-
-
 class RollingPlot():
     def __init__(self, parent: QWidget, outer: MainWindow):
-        self.graphWidget = pg.PlotWidget()
+        #pane =  QWidget(parent)
+        self.graphWidget = pg.PlotWidget(parent)
         self.graphWidget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         #self.setCentralWidget(self.graphWidget)
+        self.buffer = np.zeros((3, 200)).tolist()
 
-        self.x = np.arange(200)
-        self.y = np.zeros(200)
+        self.t = np.arange(200)
+        self.i = np.zeros(200)
+        self.v = np.zeros(200)
+        self.p = np.zeros(200)
+
+        self.showCurrent: bool = True
+        self.showVoltage: bool = True
+        self.showPower: bool = True
+
         self.outer = outer
 
         self.graphWidget.setBackground("w")
@@ -180,23 +187,68 @@ class RollingPlot():
         self.graphWidget.setLabel("left", "mA")
         self.graphWidget.setLabel("bottom", "Time")
 
-        pen = pg.mkPen(color=(255, 0, 0), width=2)
-        self.data_line = self.graphWidget.plot(self.x, self.y, pen=pen)
+        currentButton = QPushButton("current", parent)
+        currentButton.clicked.connect((lambda : self.toggle_current()))
+        voltageButton = QPushButton("voltage", parent)
+        voltageButton.clicked.connect((lambda : self.toggle_voltage()))
+        powerButton = QPushButton("power", parent)
+        powerButton.clicked.connect((lambda : self.toggle_power()))
+
+
+        layout = QVBoxLayout(parent)
+        layout.addWidget(self.graphWidget)
+        layout.addWidget(currentButton)
+        layout.addWidget(voltageButton)
+        layout.addWidget(powerButton)
+
+        blue = pg.mkPen(color=(0, 0, 255), width=2)
+        red = pg.mkPen(color=(255, 0, 0), width=2)
+        purple = pg.mkPen(color=(255, 0, 255), width=2)
+        self.current_line = self.graphWidget.plot(self.t, self.i, pen=blue)
+        self.voltage_line = self.graphWidget.plot(self.t, self.v, pen=red)
+        self.power_line = self.graphWidget.plot(self.t, self.p, pen=purple)
 
         self.timer = QtCore.QTimer()
         self.timer.setInterval(25)
         self.timer.timeout.connect(self.update_plot_data)
         self.timer.start()
 
-    def update_plot_data(self):
-        self.x = np.roll(self.x, -1)
-        self.x[-1] = self.x[-2] + 1
+    def toggle_current(self):
+        self.showCurrent = not self.showCurrent
 
-        self.y = np.roll(self.y, -1)
-        sample = self.outer.chips[self.outer.selectedChip].ina226.current_mA
-        self.y[-1] = sample
-        logger.debug(f"reading data {sample}")
-        self.data_line.setData(self.x, self.y)
+    def toggle_voltage(self):
+        self.showVoltage = not self.showVoltage
+
+    def toggle_power(self):
+        self.showPower = not self.showPower
+
+    def update_plot_data(self):
+        self.t = np.roll(self.t, -1)
+        self.t[-1] = self.t[-2] + 1
+
+        self.i = np.roll(self.i, -1)
+        self.v = np.roll(self.v, -1)
+        self.p = np.roll(self.p, -1)
+        current_mA = self.outer.chips[self.outer.selectedChip].ina226.current_mA
+        voltage = self.outer.chips[self.outer.selectedChip].ina226.bus_voltage
+        power_mW = self.outer.chips[self.outer.selectedChip].ina226.power_mW
+        self.i[-1] = current_mA
+        self.v[-1] = voltage
+        self.p[-1] = power_mW
+        #logger.debug(f"reading data {sample}")
+        if (self.showCurrent):
+            self.current_line.setData(self.t, self.i)
+        else:
+            self.current_line.setData(self.t, np.zeros(len(self.t)))
+        if (self.showVoltage):
+            self.voltage_line.setData(self.t, self.v)
+        else:
+            self.voltage_line.setData(self.t, np.zeros(len(self.t)))
+        if (self.showPower):
+            self.power_line.setData(self.t, self.p)
+        else:
+            self.power_line.setData(self.t, np.zeros(len(self.t)))
+
 
 
 class MainWindow(QMainWindow):
@@ -210,23 +262,6 @@ class MainWindow(QMainWindow):
         self.plot: RollingPlot
         self.initUI()
 
-
-
-
-#    def toggleOPD(self, idx):
-#        if self.selectedChip == None:
-#            return
-#
-#        chip = self.chips[idx]
-#        chip.toggleOPD()
-#
-#
-#    def toggleSD(self, idx):
-#        if self.selectedChip == None:
-#            return
-#
-#        chip = self.chips[idx]
-#        chip.toggleShutdown()
 
         #change app state to represent which chip is active
         #function to get called on refresh
@@ -315,14 +350,14 @@ class MainWindow(QMainWindow):
 
                 label = QLabel(f"{row[0]}, {row[1]}")
                 enButton = OPDENPushButton("EN", chip, int(row[1]))
-                enButton.clicked.connect((lambda  : lambda : enButton.toggle_EN)())
+                #enButton.clicked.connect((lambda : enButton.toggle_EN))
 
                 ispButton = OPDIspPushButton("ISP", chip, int(row[1]))
-                ispButton.clicked.connect((lambda  : lambda : ispButton.toggle_isp)())
+                #ispButton.clicked.connect((lambda  : lambda : ispButton.toggle_isp)())
                 uartButton = OPDUartPushButton("UART", chip, int(row[1]))
-                uartButton.clicked.connect((lambda  : lambda : uartButton.toggle_uart)())
+                #uartButton.clicked.connect((lambda  : lambda : uartButton.toggle_uart)())
                 resetButton = OPDCBResetPushButton("CB-RESET", chip, int(row[1]))
-                resetButton.clicked.connect((lambda  : lambda : resetButton.toggle_cb_reset)())
+                #resetButton.clicked.connect((lambda  : lambda : resetButton.toggle_cb_reset)())
 
 
 
@@ -407,12 +442,13 @@ class MainWindow(QMainWindow):
 
         #label2 = QLabel("REPLACE MEEEE", self)
         #label2.setStyleSheet("background-color: grey")
-        self.plot = RollingPlot(root, self)
+        graphPane = QWidget(root)
+        self.plot = RollingPlot(graphPane, self)
 
         layout.addWidget(splitter)
         root.setLayout(layout)
         splitter.setChildrenCollapsible(False)
-        splitter.addWidget(self.plot.graphWidget)
+        splitter.addWidget(graphPane)
 
 
 def main():

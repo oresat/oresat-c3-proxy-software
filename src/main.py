@@ -1,20 +1,12 @@
 import sys
-from PySide6 import QtWidgets, QtCore, QtGui
+from PySide6 import QtWidgets, QtCore
 from PySide6.QtWidgets import QPushButton, QMainWindow, QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QSplitter, QListWidget, QListWidgetItem, QSizePolicy
 from lib.mcp2221a import Mcp2221a, getMcp2221as
 from lib.opd import Max7310Pin, Max7310Reg, OpdAddress, BusShutdownState, OpdCardState, OpdPowerState, opd_table, IspModeState, UartState, CBResetState
-from smbus2 import i2c_msg
 import pyqtgraph as pg
 import logging
-import types
 import numpy as np
 logger = logging.getLogger(__name__)
-
-#python inheritence is dumb dumb stoopid
-#class mcpListItem(QListWidgetItem):
-#    chipIndex = 0
-#    def __init__(self, text):
-#        super().__init__(self, text, type=super().ItemType.UserType)
 
 MENUBARWIDTH= 300
 
@@ -51,7 +43,7 @@ class SDPushButton(QPushButton):
             case BusShutdownState.nominal:
                 self.setStyleSheet("background-color: green")
             case _:
-                raise RunTimeError("toggleSD returned unknown value")
+                raise RuntimeError("toggleSD returned unknown value")
 
 class OPDENPushButton(QPushButton):
     def __init__(self, text, chip: Mcp2221a, cardID: int):
@@ -73,7 +65,6 @@ class OPDENPushButton(QPushButton):
                 raise RuntimeError("button state doesn't make sense")
 
     def toggle_EN(self):
-        #match self.chip.toggleOPDPWR():
         logger.debug(f"TOGGLING CARD #{self.id}")
         next = True if self.state.next() == OpdCardState.powered else False
         self.state = self.chip.set_node_EN(self.id, next)
@@ -99,7 +90,6 @@ class OPDIspPushButton(QPushButton):
                 raise RuntimeError("button state doesn't make sense")
 
     def toggle_isp(self):
-        #match self.chip.toggleOPDPWR():
         logger.debug(f"TOGGLING ISPMODE FOR CARD #{self.id}, current state is: {self.state}")
         newstate = self.state.next()
         logger.debug(f" new state is {newstate}")
@@ -127,7 +117,6 @@ class OPDUartPushButton(QPushButton):
                 raise RuntimeError("button state doesn't make sense")
 
     def toggle_uart(self):
-        #match self.chip.toggleOPDPWR():
         logger.debug(f"TOGGLING UART FOR CARD #{self.id}, current state is: {self.state}")
         newstate = self.state.next()
         logger.debug(f" new state is {newstate}")
@@ -155,7 +144,6 @@ class OPDCBResetPushButton(QPushButton):
                 raise RuntimeError("button state doesn't make sense")
 
     def toggle_cb_reset(self):
-        #match self.chip.toggleOPDPWR():
         logger.debug(f"TOGGLING CB RESET FOR CARD #{self.id}, current state is: {self.state}")
         newstate = self.state.next()
         logger.debug(f" new state is {newstate}")
@@ -262,10 +250,6 @@ class MainWindow(QMainWindow):
         self.plot: RollingPlot
         self.initUI()
 
-
-        #change app state to represent which chip is active
-        #function to get called on refresh
-
     def scanChips(self):
         for chip in self.chips:
             chip.__del__()
@@ -287,7 +271,6 @@ class MainWindow(QMainWindow):
             sdPushButton = SDPushButton("SD", chip)
             sdPushButton.setObjectName(str(idx))
             logger.info(f"idx is {idx}")
-            #create a new scope with another lambda so they stay seperate between loop iterations
             itemLayout = QHBoxLayout(itemWidget)
             itemLayout.setContentsMargins(10, 2, 10, 2)
             itemLayout.addWidget(lineText)
@@ -298,36 +281,14 @@ class MainWindow(QMainWindow):
             self.chipSelector.setItemWidget(item, itemWidget)
 
 
-
-            #item = QListWidgetItem()
-            #QListWidgetItem(f"{idx}: {chip.usbPath.decode()}", self.chipSelector)
-            #QPushButton(text="idk", parent=item)
-            #self.chipSelector.addItem(item)
-
-
-        #self.chips[0].probe_bus() #TODO: replace with scan button
-
     def chipSelected(self, item):
-        #this is super jank, but inhereting the QListWidgetItem is really weird and stinky, + this works + ratio + bozo no CS degree   ~\(:/)/~
-        self.selectedChip = self.chipSelector.row(item)#item.text()[0]
+        self.selectedChip = self.chipSelector.row(item)
         self.plot.update_plot_data()
         logger.info(f"chip selected {self.selectedChip}")
 
 
     def updateOpdMenu(self, opdList: QListWidget):
         opdList.clear()
-
-        #address = 0x40
-        #reg = 0x00
-        #buf = bytearray([0x48, 0xdf])
-
-        #print("(main)ina226 i2c write ", address, reg, buf)
-
-
-
-        ##write = i2c_msg.write(0x40, [0x48, 0xDF])   # select register
-        ##read  = i2c_msg.read(0x40, 2)          # read 2 bytes back
-        #self.chips[self.selectedChip].i2c.write_block_data(address, reg, buf)
 
         logger.debug(f"selected chip is {self.selectedChip}, self.chips is {self.chips}")
 
@@ -358,8 +319,6 @@ class MainWindow(QMainWindow):
                 #uartButton.clicked.connect((lambda  : lambda : uartButton.toggle_uart)())
                 resetButton = OPDCBResetPushButton("CB-RESET", chip, int(row[1]))
                 #resetButton.clicked.connect((lambda  : lambda : resetButton.toggle_cb_reset)())
-
-
 
                 layout = QHBoxLayout(widget)
                 layout.setContentsMargins(10, 2, 10, 2)
@@ -422,11 +381,9 @@ class MainWindow(QMainWindow):
         panelLayout.addWidget(splitter)
         parent.addWidget(splitter)
 
-        #children
-        chipSelectorMenu = QWidget()
         self.drawChipSelector(splitter)
 
-        opdMenu = QWidget() #QLabel("OPD Control")
+        opdMenu = QWidget()
         self.drawOpdMenu(opdMenu)
         splitter.addWidget(opdMenu)
 
@@ -438,10 +395,7 @@ class MainWindow(QMainWindow):
         splitter = QSplitter(root)
 
         self.drawSidePanel(splitter)
-        #self.updateChipSelector()
 
-        #label2 = QLabel("REPLACE MEEEE", self)
-        #label2.setStyleSheet("background-color: grey")
         graphPane = QWidget(root)
         self.plot = RollingPlot(graphPane, self)
 

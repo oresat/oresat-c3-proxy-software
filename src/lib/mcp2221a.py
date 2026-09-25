@@ -1,12 +1,10 @@
 from lib.opd import OpdPowerState, BusShutdownState, opd_table
-from smbus2 import SMBus, i2c_msg
+from smbus2 import SMBus
 import gpiod
 from gpiod import Chip
 from gpiod.line import Direction, Value
 import subprocess
-from pathlib import Path
-import time
-from lib.opd import *
+from lib.opd import CBResetState, OpdPowerState, OpdCardState, OpdAddress, Max7310Pin, Max7310Reg
 from lib.ina226 import INA226
 import logging
 logger = logging.getLogger()
@@ -43,19 +41,9 @@ class Mcp2221a:
         self.OPDState = OpdPowerState.unpowered
         self.SDState = BusShutdownState.shutdown
         self.ina226 = INA226(self.i2c, 0x40)
-        #print("ina226 is ", self.ina226)
-        #except Exception as e:
-        #    print("could not initialize Mcp2221a", e)
 
     def __del__(self):
         self.gpioReq.release()
-
-
-#    #should use context manager with this
-#    def getGpioRequest(self):
-#        print(self.gpio)
-#        request = Chip(self.gpio)
-#        return request
 
     def setSD(self, state: BusShutdownState):
         logger.debug(f"setting nSD pin to: {state}")
@@ -75,7 +63,6 @@ class Mcp2221a:
         logging.debug(f"toggling shutdown: {self}")
         self.setSD(self.SDState.next())
         return self.SDState
-
 
     def setOPDPWR(self, state: OpdPowerState):
         logger.debug(f"setting OPD_PWR to: {state}")
@@ -99,7 +86,6 @@ class Mcp2221a:
         return(self.OPDState)
 
     def probe_addr(self, addr):
-        #with SMBus(self.i2c) as bus:
         found = False
         try:
             self.i2c.write_quick(addr)
@@ -115,7 +101,6 @@ class Mcp2221a:
             logger.info("I2C device at address 0x%X (%13s): %s" %(row[1], row[0], ("FOUND" if found else "not found")))
 
     def i2c_read_reg(self, addr, reg):
-        #with SMBus(self.i2c) as bus:
         try:
             val = self.i2c.read_byte_data(addr, reg)
             logging.debug(f"i2c read reg: {reg:#02x}, value: {val:#02x}")
@@ -124,8 +109,6 @@ class Mcp2221a:
             logger.error(f"Failed to read from i2c address {addr:#02x} - {e}")
 
     def i2c_write_reg(self, addr, reg, data):
-        #with SMBus(self.i2c) as bus:
-        #logger.debug(f"LENGTH OF DATA {type(data)}, {len(data)}")
         logging.debug(f"i2c write reg: {reg:#02x}, value: {data.hex()}")
         buf = bytearray(1)
         buf[0] = reg
@@ -189,7 +172,6 @@ class Mcp2221a:
         result &= (1 << pin_num)
         logger.debug(f"read gpio #{pin_num}, got: {result:#02x}")
         #self.opd_print_status(i2c_addr)
-
         return result
 
 
@@ -213,16 +195,13 @@ class Mcp2221a:
 
     def set_node_EN(self, i2c_addr: OpdAddress, enable_flag: bool) -> OpdCardState | None:
         logger.debug(f"calling set_node_EN with addr: {i2c_addr:02x}, flag: {enable_flag:02x}")
-        #self.max7310_initialize(i2c_addr)
         if enable_flag:
             self.set_max7310_pin(i2c_addr, Max7310Pin.OPD_EN)
         else:
             self.clear_max7310_pin(i2c_addr, Max7310Pin.OPD_EN)
 
-        #for idx in range(5):
         reg = self.i2c_read_reg(i2c_addr, Max7310Reg.ODR)
         logger.debug(f"register contains {reg:#02x}")
-        #    time.sleep(1)
 
         logger.debug(f" the input register has: {self.read_max7310_reg(i2c_addr, Max7310Reg.INPUT):#02x}")
 
@@ -294,15 +273,6 @@ class Mcp2221a:
             return CBResetState.enabled
 
 
-
-
-
-#mychip = Mcp2221a("a", "b", "c", "idk")
-
-#test
-#print(mychip.i2c, mychip.serial, mychip.gpio, mychip.opdState, mychip.nShutdown)
-
-
 def runCommand(command):
     try:
         result = subprocess.check_output(command, shell=True, executable="/bin/bash",
@@ -336,7 +306,6 @@ def getMcp2221a(gpiodev) -> Mcp2221a:
     return Mcp2221a(i2c, tty, gpio, usbPath)
 
 
-
 def getMcp2221as() -> list[Mcp2221a]:
     rtn = []
 
@@ -353,6 +322,4 @@ def getMcp2221as() -> list[Mcp2221a]:
         rtn.append(getMcp2221a(gpioDevice))
 
     return rtn
-
-#getMcp2221as()
 

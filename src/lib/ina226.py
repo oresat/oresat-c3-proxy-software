@@ -1,5 +1,4 @@
-from smbus2 import SMBus, i2c_msg
-import time
+from smbus2 import SMBus
 import logging
 logger = logging.getLogger(__name__)
 

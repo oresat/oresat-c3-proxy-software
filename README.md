@@ -3,6 +3,22 @@
 
 ## Quick Start
 
+### Dependancies
+```
+    python
+    sys
+    time
+    logging
+    enum
+    itertools
+
+    smbus2
+    gpiod
+    PySide6
+    pyqtgraph
+    numpy
+```
+
 ### Client configuration (linux)
 
 Create udev rule to allow applications to access the c3-proxy from userspace.

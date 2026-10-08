@@ -37,13 +37,13 @@ python src/main.py
 ```
 #### user interface
 - In the `Chip Selector` panel, press the `REFRESH` button at the bottom to detect connected c3-proxy boards.
-    if there are multiple c3-proxys connected over usb, then you can select which one you want to interact with by clicking on it's row.
+    If there are multiple c3-proxys connected over usb, then you can select which one you want to interact with by clicking on it's row.
 - in the `Opd Menu` panel, press `scan` to detect all the OPD consumers connected to the selected c3-proxy.
-    once a card is recognized, 4 OPD functions can be toggled.
-    *EN* or enable, tells the OPD circuit to allow the card draw power from the bus.
-    *ISP* or in-system-programming, puts the cards micro controller into ISP mode, helpful for flashing in some cases.
-    *UART* selects this card for UART communication
-    *B-RESET* when asserted the circuit breaker is reset, turn of during normal use
+once a card is recognized, 4 OPD functions can be toggled.
+    - **EN** or enable, tells the OPD circuit to allow the card draw power from the bus.
+    - **ISP** or in-system-programming, puts the cards micro controller into ISP mode, helpful for flashing in some cases.
+    - **UART** selects this card for UART communication
+    - **B-RESET** when asserted the circuit breaker is reset, turn of during normal use
 
 
 

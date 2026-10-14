@@ -6,7 +6,18 @@ from lib.opd import Max7310Pin, Max7310Reg, OpdAddress, BusShutdownState, OpdCar
 import pyqtgraph as pg
 import logging
 import numpy as np
+import pandas as pd
+import datetime
 logger = logging.getLogger(__name__)
+
+csvTitle = ""
+
+#if someone passed a csv file to write to
+if (len(sys.argv) > 1):
+    csvTitle = sys.argv[1]
+    logger.debug("csv file passed, writing to" + csvTitle)
+
+
 
 MENUBARWIDTH= 300
 
@@ -217,11 +228,18 @@ class RollingPlot():
         self.i = np.roll(self.i, -1)
         self.v = np.roll(self.v, -1)
         self.p = np.roll(self.p, -1)
-        current_mA = self.outer.chips[self.outer.selectedChip].ina226.current_mA
-        voltage = self.outer.chips[self.outer.selectedChip].ina226.bus_voltage
-        power_mW = self.outer.chips[self.outer.selectedChip].ina226.power_mW
+        if (len(self.outer.chips) != 0):
+            current_mA = self.outer.chips[self.outer.selectedChip].ina226.current_mA
+            voltage_V = self.outer.chips[self.outer.selectedChip].ina226.bus_voltage
+            power_mW = self.outer.chips[self.outer.selectedChip].ina226.power_mW
+            if (csvTitle): #if a csv path was passed, then write to it
+                df = pd.DataFrame([[datetime.datetime.now(), current_mA, voltage_V, power_mW]], columns=["time", "mA", "V", "mW"])
+                df.to_csv(csvTitle, index=False, mode='a')
+        else:
+            current_mA = voltage_V = power_mW = 0
+
         self.i[-1] = current_mA
-        self.v[-1] = voltage
+        self.v[-1] = voltage_V
         self.p[-1] = power_mW
         #logger.debug(f"reading data {sample}")
         if (self.showCurrent):

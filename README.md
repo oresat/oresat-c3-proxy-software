@@ -86,5 +86,5 @@ once a card is recognized, 4 OPD functions can be toggled.
     - **ISP** or in-system-programming, puts the cards micro controller into ISP mode, helpful for flashing in some cases.
     - **UART** selects this card for UART communication
     - **B-RESET** when asserted the circuit breaker is reset, turn of during normal use
-- In the `Graph Pain` the current, voltage, and power can be seen over time. The graph can be moved with the mouse, and scaled by scrolling on the axis.
+- In the `Graph Pane` the current, voltage, and power can be seen over time. The graph can be moved with the mouse, and scaled by scrolling on the axis.
 

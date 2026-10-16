@@ -1,6 +1,7 @@
 from smbus2 import SMBus
 import logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
 
 # Registers
 _REG_CONFIG        = 0x00

@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import datetime
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
 
 csvTitle = ""
 
@@ -164,27 +165,65 @@ class OPDCBResetPushButton(QPushButton):
 
 class RollingPlot():
     def __init__(self, parent: QWidget, outer: MainWindow):
-        #pane =  QWidget(parent)
-        self.graphWidget = pg.PlotWidget(parent)
-        self.graphWidget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
-        #self.setCentralWidget(self.graphWidget)
-        self.buffer = np.zeros((3, 200)).tolist()
+        self.pw = pg.PlotWidget()
+        self.pw.setBackground(background=None) #make background transparent
+        self.outer = outer
 
-        self.t = np.arange(200)
-        self.i = np.zeros(200)
-        self.v = np.zeros(200)
-        self.p = np.zeros(200)
+        self.colorI = (35, 35, 163)    #blue
+        self.colorV = (173,0,0)        #red
+        self.colorP = (136, 24, 201)   #purble
+
+
 
         self.showCurrent: bool = True
         self.showVoltage: bool = True
         self.showPower: bool = True
 
-        self.outer = outer
+        #central plotItem for curve 1
+        #only axis on the left
+        self.p1 = self.pw.plotItem
+        self.p1.setLabels(left='Power (mW)', bottom='Time (s)')
+        self.p1.getAxis('left').setPen(color=self.colorP)
+        #self.p1.showGrid(x=True, y=True, alpha=0.3)
+        self.p1.vb.sigResized.connect(self.update_views)
 
-        self.graphWidget.setBackground("w")
-        self.graphWidget.setTitle("card current consumption")
-        self.graphWidget.setLabel("left", "mA")
-        self.graphWidget.setLabel("bottom", "Time")
+        #new ViewBox for curve 2
+        #inner axis on the right
+        self.p2 = pg.ViewBox()
+        self.p1.showAxis('right')
+        self.p1.scene().addItem(self.p2)
+        self.p1.getAxis('right').linkToView(self.p2)
+        self.p2.setXLink(self.p1)
+        self.p1.getAxis('right').setLabel('Current (mA)', color=self.colorI)
+        self.p1.getAxis('right').setPen(color=self.colorI)
+
+        #new ViewBox for curve 3
+        #outer axis on the right
+        self.p3 = pg.ViewBox()
+        self.ax3 = pg.AxisItem('right')
+        self.p1.layout.addItem(self.ax3, 2, 3)
+        self.p1.scene().addItem(self.p3)
+        self.ax3.linkToView(self.p3)
+        self.p3.setXLink(self.p1)
+        self.ax3.setLabel('Voltage (mV)', color=self.colorV)
+        self.ax3.setPen(color=self.colorV)
+
+        self.buffer = np.zeros((3, 200)).tolist()
+        self.t = np.arange(200)
+        self.i = np.zeros(200)
+        self.v = np.zeros(200)
+        self.p = np.zeros(200)
+
+
+        self.powerCurve = self.p1.plot(self.t, self.p, pen=pg.mkPen(self.colorP, width=5), name="Axis 1")
+        #self.p1.addItem(self.powerCurve)
+
+        self.currentCurve = pg.PlotCurveItem(self.t, self.i, pen=pg.mkPen(self.colorI, width=5), name="Axis 2")
+        self.p2.addItem(self.currentCurve)
+        self.voltageCurve = pg.PlotCurveItem(self.t, self.v, pen=pg.mkPen(self.colorV, width=5), name="Axis 3")
+        self.p3.addItem(self.voltageCurve)
+
+        self.outer = outer
 
         currentButton = QPushButton("current", parent)
         currentButton.clicked.connect((lambda : self.toggle_current()))
@@ -193,19 +232,11 @@ class RollingPlot():
         powerButton = QPushButton("power", parent)
         powerButton.clicked.connect((lambda : self.toggle_power()))
 
-
         layout = QVBoxLayout(parent)
-        layout.addWidget(self.graphWidget)
+        layout.addWidget(self.pw)
         layout.addWidget(currentButton)
         layout.addWidget(voltageButton)
         layout.addWidget(powerButton)
-
-        blue = pg.mkPen(color=(0, 0, 255), width=2)
-        red = pg.mkPen(color=(255, 0, 0), width=2)
-        purple = pg.mkPen(color=(255, 0, 255), width=2)
-        self.current_line = self.graphWidget.plot(self.t, self.i, pen=blue)
-        self.voltage_line = self.graphWidget.plot(self.t, self.v, pen=red)
-        self.power_line = self.graphWidget.plot(self.t, self.p, pen=purple)
 
         self.timer = QtCore.QTimer()
         self.timer.setInterval(25)
@@ -220,6 +251,12 @@ class RollingPlot():
 
     def toggle_power(self):
         self.showPower = not self.showPower
+
+    def update_views(self):
+        self.p2.setGeometry(self.p1.vb.sceneBoundingRect())
+        self.p3.setGeometry(self.p1.vb.sceneBoundingRect())
+        self.p2.linkedViewChanged(self.p1.vb, self.p2.XAxis)
+        self.p3.linkedViewChanged(self.p1.vb, self.p3.XAxis)
 
     def update_plot_data(self):
         self.t = np.roll(self.t, -1)
@@ -242,18 +279,30 @@ class RollingPlot():
         self.v[-1] = voltage_V
         self.p[-1] = power_mW
         #logger.debug(f"reading data {sample}")
-        if (self.showCurrent):
-            self.current_line.setData(self.t, self.i)
+        self.currentCurve.setData(self.t, self.i)
+        self.voltageCurve.setData(self.t, self.v)
+        self.powerCurve.setData(self.t, self.p)
+        if (self.showCurrent): #current
+            if not self.p2.allChildren().__contains__(self.currentCurve):
+                self.p2.addItem(self.currentCurve)
         else:
-            self.current_line.setData(self.t, np.zeros(len(self.t)))
-        if (self.showVoltage):
-            self.voltage_line.setData(self.t, self.v)
+            self.currentCurve.setData(self.t, np.zeros(len(self.t)))
+            if self.p2.allChildren().__contains__(self.currentCurve):
+                self.p2.removeItem(self.currentCurve)
+
+        if (self.showVoltage): #voltage
+            if not self.p3.allChildren().__contains__(self.voltageCurve):
+                self.p3.addItem(self.voltageCurve)
         else:
-            self.voltage_line.setData(self.t, np.zeros(len(self.t)))
-        if (self.showPower):
-            self.power_line.setData(self.t, self.p)
+            if self.p3.allChildren().__contains__(self.voltageCurve):
+                self.p3.removeItem(self.voltageCurve)
+
+        if (self.showPower): #power
+            if not self.p1.vb.allChildItems().__contains__(self.powerCurve):
+                self.p1.addItem(self.powerCurve)
         else:
-            self.power_line.setData(self.t, np.zeros(len(self.t)))
+            if self.p1.vb.allChildItems().__contains__(self.powerCurve):
+                self.p1.removeItem(self.powerCurve)
 
 
 

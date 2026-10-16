@@ -3,7 +3,7 @@
 
 ## Quick Start
 
-### Dependancies
+### Dependencies
 ```
     python
     sys
@@ -66,10 +66,17 @@ TBD: DON'T KNOW HOW pyproject.toml WORKS
 ### Using the software
 
 Ensure the virtual environment has been activated.
+
 start the software
 ```bash
 python src/main.py
 ```
+start the software, saving all data csv file
+```bash
+python src/main.py path/to/my.csv
+```
+csv data includes the date and time to allow for long tests
+
 #### user interface
 - In the `Chip Selector` panel, press the `REFRESH` button at the bottom to detect connected c3-proxy boards.
     If there are multiple c3-proxys connected over usb, then you can select which one you want to interact with by clicking on it's row.
@@ -79,4 +86,5 @@ once a card is recognized, 4 OPD functions can be toggled.
     - **ISP** or in-system-programming, puts the cards micro controller into ISP mode, helpful for flashing in some cases.
     - **UART** selects this card for UART communication
     - **B-RESET** when asserted the circuit breaker is reset, turn of during normal use
+- In the `Graph Pain` the current, voltage, and power can be seen over time. The graph can be moved with the mouse, and scaled by scrolling on the axis.
 

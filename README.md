@@ -60,6 +60,12 @@ Activate the virtual environment
 cd /path/to/oresat-c3-proxy-software
 source ./venv/bin/activate
 ```
+
+Install the package locally (also do this to update packages).
+```bash
+pip install -e ./
+```
+
 Updating packages
 TBD: DON'T KNOW HOW pyproject.toml WORKS
 
@@ -69,11 +75,11 @@ Ensure the virtual environment has been activated.
 
 start the software
 ```bash
-python src/main.py
+python -m oresat_c3_proxy
 ```
 start the software, saving all data csv file
 ```bash
-python src/main.py path/to/my.csv
+python -m oresat_c3_proxy path/to/my.csv
 ```
 csv data includes the date and time to allow for long tests
 

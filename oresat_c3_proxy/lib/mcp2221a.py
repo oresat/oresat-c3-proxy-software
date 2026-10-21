@@ -1,11 +1,12 @@
-from lib.opd import OpdPowerState, BusShutdownState, opd_table
+from .opd import OpdPowerState, BusShutdownState, opd_table
+from .opd import CBResetState, OpdPowerState, OpdCardState, OpdAddress, Max7310Pin, Max7310Reg, IspModeState, UartState
+from .ina226 import INA226
+
 from smbus2 import SMBus
 import gpiod
 from gpiod import Chip
 from gpiod.line import Direction, Value
 import subprocess
-from lib.opd import CBResetState, OpdPowerState, OpdCardState, OpdAddress, Max7310Pin, Max7310Reg, IspModeState, UartState
-from lib.ina226 import INA226
 import logging
 logger = logging.getLogger()
 

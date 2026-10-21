@@ -1,5 +1,5 @@
 [project]
-name = "c3-proxy software"
+name = "oresat-c3-proxy"
 version = "0.1.0"
 description = "Graphical interface for the c3-proxy infrastructure and testing board of the OreSat project"
 readme = "README.md"
@@ -13,9 +13,10 @@ dependencies = [
     "smbus2",
     "gpiod",
     "pyqtgraph",
+    "pandas"
 ]
 
-
-
+[project.scripts]
+oresat-c3-proxy = "oresat_c3_proxy.__main__:main"
 
 

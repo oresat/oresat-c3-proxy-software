@@ -4,12 +4,12 @@ from smbus2 import SMBus, i2c_msg
 import gpiod
 from lib.mcp2221a import getMcp2221as, Mcp2221a
 import time
+import hid
 
 
 #uses the knon vendor and product ID to configure the gpio modes in flash
 # via USB HID packets
 def setup_mcp2221a():
-    import hid
 
     # HID constants
     idVendor=0x04d8

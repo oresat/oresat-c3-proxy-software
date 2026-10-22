@@ -3,25 +3,22 @@
 
 ## Quick Start
 
-### Dependencies
+### Python Dependencies
 ```
-    python
-    sys
-    time
-    logging
-    enum
-    itertools
-
     smbus2
     gpiod
     PySide6
     pyqtgraph
     numpy
+    pandas
 ```
 
-Linux kernel module `hid_mcp2221` driver.
-Should be installed by default I think?
+### Software Dependencies
 
+requires the `gpiodetect` command, usually from the `gpiod` package.
+`dnf install libgpiod-utils`
+requires access to the `udevadm` command.
+`dnf install systemd-udev`
 
 ### Client configuration (linux)
 
@@ -41,12 +38,6 @@ sudo udevadm control --reload
 ```
 It may be necessary to restart your computer, if the above command doesn't work.
 
-Ensure the `hid_mcp2221` kernel module is loaded when the c3-proxy is plugged in over usb.
-Search for it with:
-```bash
-kmod list | grep mcp
-```
-If no line appears with the driver, then it's not loading properly.
 
 ### Starting the software
 
@@ -66,14 +57,20 @@ Install the package locally (also do this to update packages).
 pip install -e ./
 ```
 
-Updating packages
-TBD: DON'T KNOW HOW pyproject.toml WORKS
-
 ### Using the software
 
 Ensure the virtual environment has been activated.
 
-start the software
+#### Configuring the flash
+Each c3-proxy needs to have it's flash configured to set the functionality of the gpio pins.
+This can be done with the `configure.py` script.
+```
+python oresat_c3_proxy/configure.py
+```
+This only needs to be done once per board.
+
+#### starting the software
+
 ```bash
 python -m oresat_c3_proxy
 ```

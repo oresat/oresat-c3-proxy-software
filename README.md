@@ -8,9 +8,9 @@ A python virtual environment is recommended for using this project.
 ### Software Dependencies
 
 requires the `gpiodetect` command, usually from the `gpiod` package.
-`dnf install libgpiod-utils`
+`apt install gpiod` for ubuntu
 requires access to the `udevadm` command.
-`dnf install systemd-udev`
+`apt install udev` package (installed by default
 
 ### Client configuration (linux)
 
@@ -64,9 +64,9 @@ once a card is recognized, 4 OPD functions can be toggled.
 
 
 ### pictures
-![c3-proxy in use](images/in_use.jpeg)
-![blah](images/render.png)
-![lbah](images/with_vulcan.jpg)
+![c3-proxy in use](.images/in_use.jpeg)
+![blah](.images/render.png)
+![lbah](.images/with_vulcan.jpg)
 
 
 

@@ -3,15 +3,7 @@
 
 ## Quick Start
 
-### Python Dependencies
-```
-    smbus2
-    gpiod
-    PySide6
-    pyqtgraph
-    numpy
-    pandas
-```
+A python virtual environment is recommended for using this project.
 
 ### Software Dependencies
 
@@ -22,15 +14,10 @@ requires access to the `udevadm` command.
 
 ### Client configuration (linux)
 
-Ensure your user is in the `plugdev` group:
-```bash
-sudo usermod -a -G plugdev $USER
-```
-
 Create udev rule to allow applications to access the c3-proxy from userspace.
 
 ```bash
-echo 'SUBSYSTEMS=="usb", ACTION=="add", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="00dd", GROUP="plugdev", MODE="0666"' | sudo tee /etc/udev/rules.d/99-mcp2221a.rules
+echo 'SUBSYSTEMS=="usb", ACTION=="add", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="00dd", TAG+="uaccess", MODE="0666"' | sudo tee /etc/udev/rules.d/70-mcp2221a.rules
 ```
 Then reload udev rules so it goes into effect
 ```bash
@@ -39,29 +26,13 @@ sudo udevadm control --reload
 It may be necessary to restart your computer, if the above command doesn't work.
 
 
-### Starting the software
-
-(first time) Create a python virtual environment for this project
-```bash
-cd /path/to/oresat-c3-proxy-software
-python -m venv .venv
-```
-Activate the virtual environment
-```bash
-cd /path/to/oresat-c3-proxy-software
-source ./venv/bin/activate
-```
+### Installing and Setup
 
 Install the package locally (also do this to update packages).
 ```bash
 pip install -e ./
 ```
-
-### Using the software
-
-Ensure the virtual environment has been activated.
-
-#### Configuring the flash
+#### Configuring the flash (once per board)
 Each c3-proxy needs to have it's flash configured to set the functionality of the gpio pins.
 This can be done with the `configure.py` script.
 ```
@@ -69,7 +40,7 @@ python oresat_c3_proxy/configure.py
 ```
 This only needs to be done once per board.
 
-#### starting the software
+### Using the software
 
 ```bash
 python -m oresat_c3_proxy
@@ -90,4 +61,12 @@ once a card is recognized, 4 OPD functions can be toggled.
     - **UART** selects this card for UART communication
     - **B-RESET** when asserted the circuit breaker is reset, turn of during normal use
 - In the `Graph Pane` the current, voltage, and power can be seen over time. The graph can be moved with the mouse, and scaled by scrolling on the axis.
+
+
+### pictures
+![[.images/in_use.jpg]]
+![[.images/render.jpg]]
+![[.images/with_vulcan.jpg]]
+
+
 

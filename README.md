@@ -64,9 +64,9 @@ once a card is recognized, 4 OPD functions can be toggled.
 
 
 ### pictures
-![[.images/in_use.jpg]]
-![[.images/render.jpg]]
-![[.images/with_vulcan.jpg]]
+![c3-proxy in use](images/in_use.jpeg)
+![blah](images/render.png)
+![lbah](images/with_vulcan.jpg)
 
 
 

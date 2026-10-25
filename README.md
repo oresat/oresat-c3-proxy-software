@@ -3,7 +3,8 @@
 
 ## Quick Start
 
-A python virtual environment is recommended for using this project.
+***HIGHLY RECOMMEND*** managing your python packagages/install with
+a virtual environment, like venv, uv, when using this project.
 
 ### Software Dependencies
 
@@ -15,6 +16,7 @@ requires access to the `udevadm` command.
 ### Client configuration (linux)
 
 Create udev rule to allow applications to access the c3-proxy from userspace.
+Run this command which will write the required rule to `/etc/rules.d/`
 
 ```bash
 echo 'SUBSYSTEMS=="usb", ACTION=="add", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="00dd", TAG+="uaccess", MODE="0666"' | sudo tee /etc/udev/rules.d/70-mcp2221a.rules
@@ -42,13 +44,23 @@ This only needs to be done once per board.
 
 ### Using the software
 
+run this to start the software
 ```bash
 python -m oresat_c3_proxy
 ```
+If you get a gpio request error on startup: \
+    and `ls /dev/ | grep i2c` returns nothing, \
+    then try running `sudo modprobe i2c-dev`
+
 start the software, saving all data csv file
 ```bash
 python -m oresat_c3_proxy path/to/my.csv
 ```
+to adjust the QT scale for the window, add a scale paremeter to the command.
+```bash
+    QT_SCALE_FACTOR=1 python -m oresat_c3_proxy
+```
+
 csv data includes the date and time to allow for long tests
 
 #### user interface

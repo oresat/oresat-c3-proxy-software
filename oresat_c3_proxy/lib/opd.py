@@ -64,40 +64,94 @@ class CBResetState(Enum):
         return CBResetState(new)
 
 
-
+@unique
 class OpdAddress(IntEnum):
-    PROTOCARD     = 0x10
-    BATTERY_1     = 0x18
-    GPS           = 0x19
-    ADCS          = 0x1A
-    DXWIFI        = 0x1B
-    STAR_TRACKER  = 0x1C
-    BATTERY_2     = 0x1D
-    CFC_OCTAVO    = 0x1E
-    CFC_SENSOR    = 0x1F
-    RW1           = 0x20
-    RW2           = 0x21
-    RW3           = 0x22
-    RW4           = 0x23
+    ProtoCard           = 0x10
+    DiodeTestCard       = 0x11
+    #UNUSED              = 0x12
+    #UNUSED              = 0x13
+    ZpEndCard           = 0x14
+    ZmEndCard           = 0x15
+    ZmMidCard           = 0x16
+    ZpMidCard           = 0x17
+    Battery1            = 0x18
+    GPS                 = 0x19
+    MagCard             = 0x1A
+    DxWiFi              = 0x1B
+    StarTracker1        = 0x1C
+    CFCProcessor        = 0x1D
+    CFCSensor           = 0x1E
+    Battery2            = 0x1F
+    RW1                 = 0x20
+    RW2                 = 0x21
+    RW3                 = 0x22
+    RW4                 = 0x23
+    StarTracker2        = 0x24
+    #UNUSED              = 0x25
+    #UNUSED              = 0x26
+    #UNUSED              = 0x27
+    #UNUSED              = 0x28
+    #UNUSED              = 0x29
+    #UNUSED              = 0x2A
+    #UNUSED              = 0x2B
+    #UNUSED              = 0x2C
+    #UNUSED              = 0x2D
+    #UNUSED              = 0x2E
+    #UNUSED              = 0x2F
+    #UNUSED              = 0x30
+    #UNUSED              = 0x31
+    #UNUSED              = 0x32
+    #UNUSED              = 0x33
+    #UNUSED              = 0x34
+    #UNUSED              = 0x35
+    #UNUSED              = 0x36
+    #UNUSED              = 0x37
+    #UNUSED              = 0x38
+    #UNUSED              = 0x39
+    #UNUSED              = 0x3A
+    #UNUSED              = 0x3B
+    #UNUSED              = 0x3C
+    #UNUSED              = 0x3D
+    #UNUSED              = 0x3E
+    #UNUSED              = 0x3F
+
+#    PROTOCARD     = 0x10
+#    BATTERY_1     = 0x18
+#    GPS           = 0x19
+#    ADCS          = 0x1A
+#    DXWIFI        = 0x1B
+#    STAR_TRACKER  = 0x1C
+#    BATTERY_2     = 0x1D
+#    CFC_OCTAVO    = 0x1E
+#    CFC_SENSOR    = 0x1F
+#    RW1           = 0x20
+#    RW2           = 0x21
+#    RW3           = 0x22
+#    RW4           = 0x23
 
 
 opd_table = [
-    ['protocard', OpdAddress.PROTOCARD],
-    ['battery-1', OpdAddress.BATTERY_1],
+    ['protocard', OpdAddress.ProtoCard],
+    ['diode-test-card', OpdAddress.DiodeTestCard],
+    ['z+ End Card', OpdAddress.ZpEndCard],
+    ['z- End Card', OpdAddress.ZmEndCard],
+    ['z- Mid Card', OpdAddress.ZmMidCard],
+    ['z+ Mid Card', OpdAddress.ZpMidCard],
+    ['battery-1', OpdAddress.Battery1],
     ['gps', OpdAddress.GPS],
-    ['adcs', OpdAddress.ADCS],
-    ['dxwifi', OpdAddress.DXWIFI],
-    ['star-tracker', OpdAddress.STAR_TRACKER],
-    ['battery-2', OpdAddress.BATTERY_2],
-    ['cfc-octavo', OpdAddress.CFC_OCTAVO],
-    ['cfc-sensor', OpdAddress.CFC_SENSOR],
+    ['mag-card', OpdAddress.MagCard],
+    ['dxwifi', OpdAddress.DxWiFi],
+    ['star-tracker-1', OpdAddress.StarTracker1],
+    ['cfc-processor', OpdAddress.CFCProcessor],
+    ['cfc-sensor', OpdAddress.CFCSensor],
+    ['battery-2', OpdAddress.Battery2],
     ['rw1', OpdAddress.RW1],
     ['rw2', OpdAddress.RW2],
     ['rw3', OpdAddress.RW3],
     ['rw4', OpdAddress.RW4],
-#    ['TESTING', 24],
-#    ['ina226-default', 0x40]
+    ['star-tracker-2', OpdAddress.StarTracker2],
 ]
+
 @unique
 class Max7310Reg(IntEnum):
     INPUT                   = 0x00

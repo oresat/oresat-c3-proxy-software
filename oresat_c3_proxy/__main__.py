@@ -240,7 +240,7 @@ class MainWindow(QMainWindow):
                 widget = QWidget()
                 #widget.setFixedSize(MENUBARWIDTH, 20)
 
-                label = QLabel(f"{row[0]}, {row[1]}")
+                label = QLabel("{}, {:02X}".format(row[0], row[1]))
                 enButton = OPDENPushButton("EN", chip, int(row[1]))
                 #enButton.clicked.connect((lambda : enButton.toggle_EN))
 
